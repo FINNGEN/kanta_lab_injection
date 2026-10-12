@@ -1,8 +1,12 @@
 name: Deploy injection site
 
+# GitHub Pages hosts one site per repo, so every run rebuilds both branches into a single
+# artifact: master at the site root, dev under /dev/. Each branch is built with its own
+# scripts/build_site.py, data/ and README.md.
+
 on:
   push:
-    branches: [master]
+    branches: [master, dev]
     paths:
       - data/**
       - scripts/build_site.py
@@ -27,6 +31,24 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: master
+
+      - name: Check for dev branch
+        id: dev
+        run: |
+          if git ls-remote --exit-code --heads "https://github.com/${{ github.repository }}" dev >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.dev.outputs.exists == 'true'
+        with:
+          ref: dev
+          path: dev
 
       - uses: actions/setup-python@v5
         with:
@@ -35,8 +57,16 @@ jobs:
       - name: Install dependencies
         run: pip install pandas markdown
 
-      - name: Build site
-        run: python3 scripts/build_site.py --data-dir data --out-dir _site
+      - name: Build master site
+        run: |
+          python3 master/scripts/build_site.py \
+            --data-dir master/data --readme master/README.md --out-dir _site
+
+      - name: Build dev site
+        if: steps.dev.outputs.exists == 'true'
+        run: |
+          python3 dev/scripts/build_site.py \
+            --data-dir dev/data --readme dev/README.md --out-dir _site/dev
 
       - uses: actions/configure-pages@v4
 
