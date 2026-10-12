@@ -5,7 +5,7 @@ on:
     branches: [master]
     paths:
       - data/**
-      - build_site.py
+      - scripts/build_site.py
       - README.md
       - .github/workflows/deploy_site.yml
   workflow_dispatch:
@@ -36,7 +36,7 @@ jobs:
         run: pip install pandas markdown
 
       - name: Build site
-        run: python3 build_site.py --data-dir data --out-dir _site
+        run: python3 scripts/build_site.py --data-dir data --out-dir _site
 
       - uses: actions/configure-pages@v4
 

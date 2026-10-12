@@ -26,7 +26,7 @@ HARMONIZATION_REPO_URL_TEMPLATE = (
 )
 _HARMONIZATION_BRANCH: str = DEFAULT_HARMONIZATION_BRANCH
 
-REFERENCE_DIR = Path(__file__).resolve().parent / "reference"
+REFERENCE_DIR = Path(__file__).resolve().parents[1] / "reference"
 
 # Usagi lab-test mapping table (MAPPING_STATUS/OMOP concept id per TEST_NAME_ABBREVIATION).
 USAGI_MAPPING_FILE = REFERENCE_DIR / "LABfi.tsv"

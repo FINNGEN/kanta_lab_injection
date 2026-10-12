@@ -16,7 +16,7 @@ Usage
   python3 split_eval.py TEST_NAME --units "mmol/l:85.2,µmol/l:12.1" [options]
 
   Assumes candidate and target .npy arrays already exist in --dump-dir
-  (produced by explore_test_name.py).
+  (produced by test_name_injection.py).
 """
 
 import argparse

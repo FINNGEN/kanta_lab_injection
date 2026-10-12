@@ -8,7 +8,7 @@ Usage:
   python3 build_site.py [--out-dir PATH]
 
 Reads from {out_dir}/data/ and {out_dir}/plots/, writes index.html and doc.html
-to {out_dir}/.  Pass --out-dir to match what you used with explore_test_name.py.
+to {out_dir}/.  Pass --out-dir to match what you used with test_name_injection.py.
 """
 
 import argparse
@@ -966,8 +966,8 @@ def main():
         description="Build HTML site from injection pipeline outputs.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    _here = Path(__file__).parent
-    p.add_argument("--data-dir", default=str(_here / "data"), metavar="PATH",
+    _root = Path(__file__).resolve().parents[1]
+    p.add_argument("--data-dir", default=str(_root / "data"), metavar="PATH",
                    help="Directory containing all pipeline outputs (TSVs, PNGs, MDs)")
     p.add_argument("--out-dir", default=None, metavar="PATH",
                    help="Directory where index.html and doc.html are written "
@@ -977,12 +977,12 @@ def main():
     p.add_argument("--scatter", default=None, metavar="PATH",
                    help="Scatter plot filename relative to --data-dir (default: auto-detected)")
     p.add_argument("--readme", default=None, metavar="PATH",
-                   help="Path to README.md (default: README.md next to this script)")
+                   help="Path to README.md (default: README.md at the repo root)")
     args = p.parse_args()
 
     data_dir = Path(args.data_dir)
     out_dir  = Path(args.out_dir) if args.out_dir else Path(".")
-    readme   = Path(args.readme) if args.readme else _here / "README.md"
+    readme   = Path(args.readme) if args.readme else _root / "README.md"
     inj      = Path(args.injection_results) if args.injection_results else None
     scatter  = args.scatter
 

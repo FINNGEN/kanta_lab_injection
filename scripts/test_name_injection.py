@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-explore_test_name.py
+test_name_injection.py
 
 Identifies lab measurements that have a numeric value but no unit, characterises
 the unit distribution of matching records that do have a unit, and optionally
@@ -8,7 +8,7 @@ runs the injection engine to validate each candidate TEST_NAME.
 
 Usage
 -----
-  python3 explore_test_name.py PARQUET [options]
+  python3 scripts/test_name_injection.py PARQUET [options]
 """
 
 import argparse
@@ -1027,8 +1027,8 @@ def build_parser():
     p.add_argument("--release", action="store_true",
                    help="After a full --inject run, copy the release files (injection_results.tsv, "
                         "assignment_summary.md, summary_table.md, plot_data.json.gz, "
-                        "test_names_exploration_scatter.png) into data/ next to "
-                        "this script (not --out-dir, regardless of cwd). Local copy only — does not "
+                        "test_names_exploration_scatter.png) into the repo's data/ "
+                        "(not --out-dir, regardless of cwd). Local copy only — does not "
                         "commit or push.")
     return p
 
@@ -1137,13 +1137,13 @@ def main():
 
             if args.release:
                 script_dir = Path(__file__).resolve().parent
-                release_dir = script_dir / "data"
+                release_dir = script_dir.parent / "data"
                 release_dir.mkdir(parents=True, exist_ok=True)
                 for fname in _RELEASE_FILES:
                     shutil.copy2(work_dir / fname, release_dir / fname)
                 print(f"Released {len(_RELEASE_FILES)} files → {release_dir}/")
 
-                site_dir = script_dir / "html"
+                site_dir = script_dir.parent / "html"
                 proc = subprocess.run(
                     [sys.executable, str(script_dir / "build_site.py"),
                      "--data-dir", str(release_dir), "--out-dir", str(site_dir)],

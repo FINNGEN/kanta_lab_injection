@@ -31,7 +31,7 @@ The goal is to identify lab measurements that have a numeric value but are missi
 ## Usage
 
 ```bash
-python3 explore_test_name.py <parquet_file> [options]
+python3 scripts/test_name_injection.py <parquet_file> [options]
 ```
 
 - `<parquet_file>`: path to the input parquet file (INJECT.parquet)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-explore_unharmonized.py
+unharmonized_injection.py
 
 Identifies lab measurements that hold a real source value but failed unit
 harmonization (harmonization_omop::MEASUREMENT_VALUE == "NA"). Ground truth and
@@ -58,8 +58,8 @@ known, documented limitation for now). Only single-test mode is implemented
 
 Usage
 -----
-  python3 explore_unharmonized.py PARQUET [--min-count 50] [--out unharmonized_counts.tsv]
-  python3 explore_unharmonized.py PARQUET --inject --test TEST_NAME
+  python3 scripts/unharmonized_injection.py PARQUET [--min-count 50] [--out unharmonized_counts.tsv]
+  python3 scripts/unharmonized_injection.py PARQUET --inject --test TEST_NAME
 """
 
 import argparse
@@ -71,7 +71,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-import explore_test_name as etn
+import test_name_injection as tni
 import injection_engine
 import reference_data as rd
 
@@ -385,7 +385,7 @@ def find_candidate_conversions(quantity, target_unit, omop_id):
 
 def _pass_rank(row):
     """Lower is better: KS-decided PASS beats T-decided beats MAD-decided beats FAIL beats SKIP —
-    mirrors explore_test_name.py's run_ambiguous ranking (no UNIT_PREVALENCE tiebreak available
+    mirrors test_name_injection.py's run_ambiguous ranking (no UNIT_PREVALENCE tiebreak available
     here, so ties break on KS_STAT alone)."""
     if row["KS_PASS"] == "PASS": return 0
     if row["T_PASS"]  == "PASS": return 1
@@ -438,7 +438,7 @@ def run_test_injection(parquet, test_name, df, abbrev_map, usagi_status_map, dum
           f"{[f'{u}(CF={cf:.4g})' for u, cf in candidates]}  -> {mode}")
 
     def _try(c_arr, cand_unit, tag):
-        return etn._run_engine(
+        return tni._run_engine(
             c_arr, unit_data[cand_unit], f"{test_name} [unharm{tag}] [{cand_unit}]", dump_dir,
             prevalence=None,
         )
