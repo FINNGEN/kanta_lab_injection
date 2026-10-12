@@ -169,7 +169,9 @@ def main():
     p.add_argument("--out",           default="omop_unit_table.tsv")
     p.add_argument("--approved-only", action="store_true",
                    help="Only include APPROVED mappings")
+    rd.add_branch_argument(p)
     args = p.parse_args()
+    rd.set_harmonization_branch(args.harmonization_branch)
 
     print(f"Loading lab mapping  ({'APPROVED only' if args.approved_only else 'all statuses'})...")
     lab_df = load_lab(approved_only=args.approved_only)

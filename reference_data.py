@@ -16,23 +16,43 @@ from urllib.error import URLError
 
 import pandas as pd
 
-# Public repo hosting Usagi (OMOP) harmonization reference tables. Keep in sync with
-# kanta_lab_preprocessing's config.HARMONIZATION_REPO_BRANCH.
-HARMONIZATION_REPO_BRANCH = "kanta_v4"
-HARMONIZATION_REPO_URL = (
+# Public repo hosting Usagi (OMOP) harmonization reference tables. Default branch kept in
+# sync with kanta_lab_preprocessing's config.HARMONIZATION_REPO_BRANCH; switchable per run
+# via set_harmonization_branch() (--harmonization-branch in the scripts).
+DEFAULT_HARMONIZATION_BRANCH = "kanta_v4"
+HARMONIZATION_REPO_URL_TEMPLATE = (
     "https://raw.githubusercontent.com/FINNGEN/kanta_lab_harmonisation_public/"
-    f"refs/heads/{HARMONIZATION_REPO_BRANCH}/MAPPINGS/"
+    "refs/heads/{branch}/MAPPINGS/"
 )
+_HARMONIZATION_BRANCH: str = DEFAULT_HARMONIZATION_BRANCH
 
 REFERENCE_DIR = Path(__file__).resolve().parent / "reference"
 
 # Usagi lab-test mapping table (MAPPING_STATUS/OMOP concept id per TEST_NAME_ABBREVIATION).
 USAGI_MAPPING_FILE = REFERENCE_DIR / "LABfi.tsv"
-USAGI_MAPPING_URL = HARMONIZATION_REPO_URL + "LABfi.tsv"
 
 # Conversion factor per (OMOP_QUANTITY, source unit, target unit).
 UNIT_CONVERSION_FILE = REFERENCE_DIR / "quantity_source_unit_conversion.tsv"
-UNIT_CONVERSION_URL = HARMONIZATION_REPO_URL + "quantity_source_unit_conversion.tsv"
+
+
+def set_harmonization_branch(branch: str) -> None:
+    """Point the remote refresh at this branch of kanta_lab_harmonisation_public.
+
+    Must be called before the first loader call — loaders are cached per process.
+    """
+    global _HARMONIZATION_BRANCH
+    _HARMONIZATION_BRANCH = branch
+
+
+def _remote_url(filename: str) -> str:
+    return HARMONIZATION_REPO_URL_TEMPLATE.format(branch=_HARMONIZATION_BRANCH) + filename
+
+
+def add_branch_argument(parser) -> None:
+    """Add the shared --harmonization-branch option to a script's argparse parser."""
+    parser.add_argument("--harmonization-branch", default=DEFAULT_HARMONIZATION_BRANCH, metavar="BRANCH",
+                        help="Branch of kanta_lab_harmonisation_public to refresh the Usagi reference "
+                             "tables from (default: %(default)s)")
 
 
 def _refresh_from_remote(url: str, local_path: Path, timeout: float = 5.0, verbose: bool = False) -> None:
@@ -61,14 +81,14 @@ def _refresh_from_remote(url: str, local_path: Path, timeout: float = 5.0, verbo
 @lru_cache(maxsize=1)
 def usagi_mapping_path(verbose: bool = False) -> Path:
     """Path to the full (untrimmed) Usagi LABfi.tsv, refreshed from remote once per process."""
-    _refresh_from_remote(USAGI_MAPPING_URL, USAGI_MAPPING_FILE, verbose=verbose)
+    _refresh_from_remote(_remote_url("LABfi.tsv"), USAGI_MAPPING_FILE, verbose=verbose)
     return USAGI_MAPPING_FILE
 
 
 @lru_cache(maxsize=1)
 def unit_conversion_path(verbose: bool = False) -> Path:
     """Path to quantity_source_unit_conversion.tsv, refreshed from remote once per process."""
-    _refresh_from_remote(UNIT_CONVERSION_URL, UNIT_CONVERSION_FILE, verbose=verbose)
+    _refresh_from_remote(_remote_url("quantity_source_unit_conversion.tsv"), UNIT_CONVERSION_FILE, verbose=verbose)
     return UNIT_CONVERSION_FILE
 
 

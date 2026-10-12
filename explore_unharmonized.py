@@ -545,6 +545,7 @@ def build_parser():
     p.add_argument("parquet", help="Input parquet file (engine output, e.g. kanta.parquet)")
     p.add_argument("--min-count", type=int, default=50, metavar="INT",
                    help="Minimum row count per (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT, OMOP_ID_RAW) to include")
+    rd.add_branch_argument(p)
     p.add_argument("--usagi", default=None, metavar="PATH",
                    help="Usagi lab mapping TSV, for the abbreviation-level OMOP_ID fallback "
                         "(default: LABfi.tsv refreshed from kanta_lab_harmonisation_public)")
@@ -577,6 +578,7 @@ def main():
     if args.inject and not args.test:
         parser.error("--inject requires --test TEST_NAME")
 
+    rd.set_harmonization_branch(args.harmonization_branch)
     if args.usagi is None:
         args.usagi = str(rd.usagi_mapping_path())
 
