@@ -1,6 +1,14 @@
 # Unit injection exploration
 
-Site: https://finngen.github.io/kanta_lab_preprocessing/injection/
+Site: https://finngen.github.io/kanta_lab_injection/
+
+`data/injection_results.tsv` on `master` is the release consumed by
+[kanta_lab_preprocessing](https://github.com/FINNGEN/kanta_lab_preprocessing)'s engine, which
+fetches it at run time. The Usagi reference tables (`LABfi.tsv`,
+`quantity_source_unit_conversion.tsv`) are refreshed from
+[kanta_lab_harmonisation_public](https://github.com/FINNGEN/kanta_lab_harmonisation_public) on
+load by `reference_data.py`, falling back to the snapshots in `reference/` when offline — the
+same sources and mechanism the engine uses.
 
 The goal is to identify lab measurements that have a numeric value but are missing a unit, and to characterise the unit distribution of the matching records that do have a unit — so that a unit can be confidently assigned to the missing ones.
 

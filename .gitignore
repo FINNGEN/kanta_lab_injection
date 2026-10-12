@@ -1,0 +1,20 @@
+# site — generated HTML (rebuilt by CI)
+html/
+# intermediate pipeline cache files (not needed for site)
+data/test_name_counts.tsv
+data/test_name_details.tsv
+data/omop_unit_table.tsv
+data/unambiguous_results.tsv
+data/ambiguous_results.tsv
+data/plot_name_level.tsv
+# partial downloads from reference_data._refresh_from_remote
+reference/*.tmp
+
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+_site/
+
+# Claude Code local state
+.claude/

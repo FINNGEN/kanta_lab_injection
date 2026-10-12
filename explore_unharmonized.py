@@ -71,14 +71,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_USAGI_FILE = _REPO_ROOT / "src/kanta/engine/data/LABfi.tsv"
-
-sys.path.insert(0, str(_REPO_ROOT / "src"))
-
 import explore_test_name as etn
 import injection_engine
-from kanta.engine import reference_data as rd
+import reference_data as rd
 
 
 # ---------------------------------------------------------------------------
@@ -550,8 +545,9 @@ def build_parser():
     p.add_argument("parquet", help="Input parquet file (engine output, e.g. kanta.parquet)")
     p.add_argument("--min-count", type=int, default=50, metavar="INT",
                    help="Minimum row count per (TEST_NAME_ABBREVIATION, MEASUREMENT_UNIT, OMOP_ID_RAW) to include")
-    p.add_argument("--usagi", default=str(_DEFAULT_USAGI_FILE), metavar="PATH",
-                   help="Usagi lab mapping TSV, for the abbreviation-level OMOP_ID fallback")
+    p.add_argument("--usagi", default=None, metavar="PATH",
+                   help="Usagi lab mapping TSV, for the abbreviation-level OMOP_ID fallback "
+                        "(default: LABfi.tsv refreshed from kanta_lab_harmonisation_public)")
     p.add_argument("--out", default="unharmonized_counts.tsv", metavar="PATH",
                    help="Output TSV path (final, resolved discovery table)")
     p.add_argument("--raw-cache", default="unharmonized_raw_counts.tsv", metavar="PATH",
@@ -580,6 +576,9 @@ def main():
 
     if args.inject and not args.test:
         parser.error("--inject requires --test TEST_NAME")
+
+    if args.usagi is None:
+        args.usagi = str(rd.usagi_mapping_path())
 
     raw = query_raw_counts(args.parquet, args.min_count, cache=args.raw_cache)
     abbrev_map = load_abbrev_omop_map(args.usagi)

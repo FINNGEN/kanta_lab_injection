@@ -1027,7 +1027,7 @@ def build_parser():
     p.add_argument("--release", action="store_true",
                    help="After a full --inject run, copy the release files (injection_results.tsv, "
                         "assignment_summary.md, summary_table.md, plot_data.json.gz, "
-                        "test_names_exploration_scatter.png) into scripts/injection/data/ next to "
+                        "test_names_exploration_scatter.png) into data/ next to "
                         "this script (not --out-dir, regardless of cwd). Local copy only — does not "
                         "commit or push.")
     return p
