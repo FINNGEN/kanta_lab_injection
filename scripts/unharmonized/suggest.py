@@ -34,6 +34,9 @@ Result (RESULT)
   Suggest fix                            CONFIDENCE High: values (KS or T) and ranges agree;
                                          Medium: one kind of evidence only, or values pass
                                          on the loose MAD test alone
+  Unit is right: approve the Usagi row   the best fit is the group's own unit: nothing to fix in
+                                         omop_injection.tsv, the (test, unit) → concept row in Usagi
+                                         is unchecked or missing (same confidence levels)
   Review: values and ranges disagree
   Review: needs a split                  the ranges point to two units; omop_injection.tsv
                                          holds one fix per (test, unit)
@@ -142,10 +145,14 @@ UNIT_CASES = {
     "formula":     "Only a formula conversion exists",
     "lowtarget":   "Too few harmonized rows to compare",
     "unconverted": "Unit not convertible",
+    "usagi_unchecked": "Unit is right; Usagi row unchecked",
+    "usagi_missing":   "Unit is right; Usagi row missing",
+    "usagi_review":    "Unit is right; Usagi row needs review",
     "notassessed": "Not assessed (no concept)",
 }
 RESULTS = {
     "suggest":      "Suggest fix",
+    "usagi":        "Unit is right: approve the Usagi row",
     "conflict":     "Review: values and ranges disagree",
     "split":        "Review: needs a split",
     "nofit":        "No unit fits",
@@ -906,6 +913,13 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
             txt += f" Formula conversions are not tested ({', '.join(sorted(set(formula_units)))})."
         reason = txt
 
+    # the best fit is the group's own unit: no unit to change, only the Usagi row is missing
+    if result == "suggest" and pick is not None and pick["unit"] == unit:
+        result = "usagi"
+        reason = (f"The unit {unit_label(unit)} is right: {reason[0].lower()}{reason[1:]} Approving the Usagi row "
+                  f"({test}, {unit_label(unit)}) → {pick['omop']} lets these rows harmonize with the existing "
+                  f"conversion.")
+
     # --- unit case ---
     if concept_case == "noconcept":
         ucase = "missing" if unit == "NA" else "notassessed"
@@ -919,6 +933,8 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
         ucase = "nomatch"
     elif unit == "NA":
         ucase = "missing"
+    elif result == "usagi":
+        ucase = {"UNCHECKED": "usagi_unchecked", "MISSING": "usagi_missing"}.get(pair_status, "usagi_review")
     elif pick is not None:
         ucase = "synonym" if abs(pick["cf"] - 1) < 1e-9 else "wrong"
     else:
@@ -953,7 +969,7 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
         OMOP_ID=(pick or ref or {}).get("omop", concepts[0] if len(concepts) == 1 else "|".join(concepts)),
         UNIT_CASE=UNIT_CASES[ucase], RESULT=RESULTS[result], CONFIDENCE=conf,
         DECIDABLE="no" if result in NOT_DECIDABLE else "yes",
-        FIX_UNIT=pick["unit"] if pick else "",
+        FIX_UNIT=pick["unit"] if pick is not None and result == "suggest" else "",
         NEEDS="; ".join(needs),
     )
     if pick is not None:
@@ -970,7 +986,9 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
         out["N_TARGET"] = cache_targets[om][3]
         out["N_TARGET_SUBJECTS"] = cache_targets[om][4]
         out.setdefault("TARGET_UNIT", cache_targets[om][0])
-    if (test, unit) in rules and pick is not None:
+    if result == "usagi":
+        out["VS_CURRENT_RULE"] = "Rule exists" if (test, unit) in rules else ""
+    elif (test, unit) in rules and pick is not None:
         out["VS_CURRENT_RULE"] = "Same" if rules[(test, unit)] == pick["unit"] else "Different"
     elif pick is not None:
         out["VS_CURRENT_RULE"] = "New"

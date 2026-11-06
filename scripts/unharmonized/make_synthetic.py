@@ -23,6 +23,8 @@ invented. One scenario per case the suggestions have to handle:
   syn-no-usagi · (no unit) test not in Usagi
   l-monosyytti · (no unit) test only unchecked in Usagi, no concept
   rakkoaika · h            unchecked pair proposing a concept that has no harmonized rows
+  b-t-cd4 · e6/l           the unit is right (e6/l, × 0.001 into e9/l), but the pair is unchecked in Usagi
+                           without a concept → approve the Usagi row (no unit fix)
 
 Every row has a FINNGENID (people repeat: about 3–4 rows each), and a few groups carry cases the
 minimum-N rules must catch (scripts/common/disclosure.py):
@@ -68,6 +70,7 @@ TARGETS = {
     "3004410":  [("b-hb-a1c", "%", 1, "%", np.log10(5.7), 0.05, 6000, (4, 6), 0.85)],
     "3051611":  [("-l-ind", "index", 1, "index", np.log10(1.0), 0.2, 40, (None, 1.2), 0.5)],
     "3015736":  [("u-ph", "ph", 1, "ph", np.log10(6.0), 0.05, 4000, (5, 8), 0.7)],
+    "3028167":  [("b-t-cd4", "e9/l", 1, "e9/l", np.log10(0.8), 0.25, 4000, (0.4, 1.6), 0.7)],
 }
 
 # failed groups: (test, unit, omop_raw, n, components, coverage, source-unit spellings)
@@ -91,6 +94,7 @@ GROUPS = [
     ("l-monosyytti", "NA", "0", 600, [(1, np.log10(7), 0.2, (2, 12))], 0.6, ["NA"]),
     ("rakkoaika", "h", "0", 500, [(1, np.log10(3), 0.2, None)], 0.0, ["h"]),
     ("syn-few-people", "mg", "NA", 1500, [(1, np.log10(3), 0.3, (1, 5))], 0.4, ["mg"]),
+    ("b-t-cd4", "e6/l", "0", 900, [(1, np.log10(800), 0.25, (400, 1600))], 0.7, ["e6/l"]),
 ]
 
 RULES = [("b-hkr", "osuus", "ratio"), ("du-na", "mmol", "mmol/l")]

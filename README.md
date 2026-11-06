@@ -293,6 +293,9 @@ Each group gets a **result**:
 - **Suggest fix**:
   - high confidence: values (KS or T) and ranges agree;
   - medium: only one kind of evidence, or values pass only the MAD test.
+- **Unit is right: approve the Usagi row**: the best fit is the group's own unit (same confidence levels). Nothing
+  changes in `omop_injection.tsv`: the rows fail only because the `(test, unit)` row in Usagi is unchecked or
+  missing, and approving it (`NEEDS`) lets them harmonize with the existing conversion.
 - **Review: values and ranges disagree**
 - **Review: needs a split**: the ranges point to two units.
 - **No unit fits**: none of the concept's units (the units the conversion table converts into its unit) passes. The

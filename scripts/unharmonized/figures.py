@@ -80,7 +80,9 @@ def draw(row, plot, path):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8.4, 3.3), gridspec_kw={"width_ratios": [1.1, 1]})
     fix = (f": {row['SOURCE_UNIT']} → {row['FIX_UNIT']} (× {float(row['CONVERSION_FACTOR']):g})"
-           if row["RESULT"] == "Suggest fix" else "")
+           if row["RESULT"] == "Suggest fix" else
+           f" ({row['TEST_NAME']}, {row['SOURCE_UNIT']}) → {row['OMOP_ID']}"
+           if row["RESULT"] == "Unit is right: approve the Usagi row" else "")
     fig.suptitle(f"{row['TEST_NAME']} · {row['SOURCE_UNIT']} — {row['RESULT']}{fix}", fontsize=10, color=INK,
                  x=0.01, ha="left")
 

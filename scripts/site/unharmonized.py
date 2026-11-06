@@ -45,6 +45,7 @@ STYLE = """
     .chart     { width: 100%; height: 360px; }
     .chart-sm  { width: 100%; height: 340px; }
     .res-suggest  { background: #198754; }
+    .res-usagi    { background: #0d6efd; }
     .res-review   { background: #c27c0e; }
     .res-none     { background: #6c757d; }
     .conf-High    { background: #0f5132; }
@@ -69,8 +70,11 @@ STYLE = """
     .mock { background: #fff3cd; border: 1px solid #ffe69c; border-radius: 4px; padding: .4rem .7rem; margin-bottom: 1rem; }
   </style>"""
 
+USAGI_RESULT = "Unit is right: approve the Usagi row"
+
 RESULT_CLASS = {
     "Suggest fix": "res-suggest",
+    "Unit is right: approve the Usagi row": "res-usagi",
     "Review: values and ranges disagree": "res-review",
     "Review: needs a split": "res-review",
     "No unit fits": "res-none",
@@ -147,7 +151,10 @@ def _count(v):
 def issue_body(row, page_url, fig_url, crow, history, plot=None):
     """Self-contained review record: it stays readable after the group leaves the data."""
     fix = (f"{row['SOURCE_UNIT']} → {row['FIX_UNIT']} (× {row['CONVERSION_FACTOR']:g} into {row['TARGET_UNIT']})"
-           if row["RESULT"] == "Suggest fix" else "—")
+           if row["RESULT"] == "Suggest fix" else
+           f"none: approve the Usagi row ({row['TEST_NAME']}, {row['SOURCE_UNIT']}) → {_clean(row['OMOP_ID'])} "
+           f"(× {row['CONVERSION_FACTOR']:g} into {row['TARGET_UNIT']}, already in the conversion table)"
+           if row["RESULT"] == USAGI_RESULT else "—")
     lines = [
         f"**Group page:** {page_url}",
         "",
@@ -159,8 +166,9 @@ def issue_body(row, page_url, fig_url, crow, history, plot=None):
         f"- **Unit problem:** {row['UNIT_CASE']}",
         (f"- **Ranges:** {100 * float(row['RANGE_COVERAGE']):.0f}% of rows have one"
          if _clean(row["RANGE_COVERAGE"]) != "" else "- **Ranges:** —")
-        + (f"; {100 * float(row['RANGE_MATCH']):.0f}% of those match the suggested unit"
-           if row["RESULT"] == "Suggest fix" and _clean(row.get("RANGE_MATCH")) != "" else ""),
+        + (f"; {100 * float(row['RANGE_MATCH']):.0f}% of those match the "
+           f"{'suggested unit' if row['RESULT'] == 'Suggest fix' else 'unit'}"
+           if row["RESULT"] in ("Suggest fix", USAGI_RESULT) and _clean(row.get("RANGE_MATCH")) != "" else ""),
         f"- **Needs:** {_clean(row['NEEDS']) or '—'}",
         f"- **Current rule:** {_clean(row['CURRENT_RULE']) or '—'} ({_clean(row['VS_CURRENT_RULE']) or '—'})",
         "",
@@ -787,6 +795,11 @@ def build(out_dir: Path, data_dir: Path, repo: str, site_url: str, issues: dict,
             fix = (f"Fix: {html.escape(r['SOURCE_UNIT'])} → {html.escape(r['FIX_UNIT'])} "
                    f"<span class='text-muted fw-normal'>(× {r['CONVERSION_FACTOR']:g} into "
                    f"{html.escape(str(r['TARGET_UNIT']))})</span>")
+        elif r["RESULT"] == USAGI_RESULT:
+            fix = (f"Approve in Usagi: ({html.escape(r['TEST_NAME'])}, {html.escape(r['SOURCE_UNIT'])}) → "
+                   f"{html.escape(str(_clean(r['OMOP_ID'])))} <span class='text-muted fw-normal'>(× "
+                   f"{r['CONVERSION_FACTOR']:g} into {html.escape(str(r['TARGET_UNIT']))}, already in the "
+                   f"conversion table)</span>")
         conf = _clean(r["CONFIDENCE"])
         concept = f"{_clean(r['OMOP_ID'])}" + (f" <span class='fw-normal text-muted'>{html.escape(str(r['OMOP_NAME']))}</span>"
                                                if _clean(r["OMOP_NAME"]) else "")
@@ -829,9 +842,10 @@ def build(out_dir: Path, data_dir: Path, repo: str, site_url: str, issues: dict,
                    ISSUE_STATE=issue["state"] if issue else "", ISSUE_URL=issue["url"] if issue else "",
                    ISSUE_NOTE=note,
                    # a "new issue" link right in the overview, for clear-cut suggestions only
-                   ISSUE_NEW=new_issue if r["RESULT"] == "Suggest fix"
+                   ISSUE_NEW=new_issue if r["RESULT"] in ("Suggest fix", USAGI_RESULT)
                    and (not issue or note.startswith("suggestion changed")) else "")
-        row["RESULT_LINK"] = (row["ISSUE_NEW"] or (issue["url"] if issue else "")) if r["RESULT"] == "Suggest fix" else ""
+        row["RESULT_LINK"] = ((row["ISSUE_NEW"] or (issue["url"] if issue else ""))
+                              if r["RESULT"] in ("Suggest fix", USAGI_RESULT) else "")
         if row.get("CONVERSION_FACTOR") != "":
             row["CONVERSION_FACTOR"] = f"{float(row['CONVERSION_FACTOR']):g}"
         rows_out.append(row)

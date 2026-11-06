@@ -4,8 +4,10 @@ Input `/mnt/disks/data/kanta/engine/kanta_R15_dev_2026_11_05/kanta_R15_dev_2026_
 
 | Result | Confidence | Groups | Rows |
 | --- | --- | ---: | ---: |
-| Suggest fix | High | 26 | 806,951 |
-| Suggest fix | Medium | 25 | 105,396 |
+| Suggest fix | High | 23 | 799,265 |
+| Suggest fix | Medium | 22 | 73,103 |
+| Unit is right: approve the Usagi row | High | 3 | 7,686 |
+| Unit is right: approve the Usagi row | Medium | 3 | 32,293 |
 | Review: values and ranges disagree |  | 4 | 8,067 |
 | No unit fits |  | 9 | 43,292 |
 | Not decidable: test not in Usagi |  | 175 | 1,075,734 |
