@@ -551,7 +551,8 @@ def _fmt_deciles(arr):
 # ---------------------------------------------------------------------------
 
 # Bump whenever the engine, the release rules (common/disclosure.py) or the result columns change:
-# cached results computed by older code are then recomputed.
+# cached results computed by older code are then recomputed. (Not needed when only the choice of
+# the best unit changes: that runs on the cached per-unit rows, after the cache.)
 CACHE_VERSION = 1
 
 
@@ -1047,15 +1048,18 @@ def run_ambiguous(parquet, plot_name, details, dump_dir, plots_dir=None,
         return 4
 
     results["_rank"] = results.apply(_pass_rank, axis=1)
+    # The unit share breaks ties only between units that pass KS or T. Among units that pass
+    # only the loose MAD test, the KS statistic decides: MAD alone can let a whole other scale
+    # through (fs-trfesat: fraction values ~0.22 pass MAD against % values ~20, KS 0.99).
+    results["_share_key"] = np.where(results["_rank"] <= 1, -results["UNIT_PREVALENCE"], 0.0)
     best = (results
-            .sort_values(["_rank", "UNIT_PREVALENCE", "KS_STAT"],
-                         ascending=[True, False, True])
+            .sort_values(["_rank", "_share_key", "KS_STAT"])
             .groupby(["TEST_NAME", "SUB_DIST"])["UNIT"]
             .first()
             .reset_index())
     results = results.merge(best.rename(columns={"UNIT": "_best_unit"}),
                             on=["TEST_NAME", "SUB_DIST"], how="left")
-    results = results[results["UNIT"] == results["_best_unit"]].drop(columns=["_rank", "_best_unit"])
+    results = results[results["UNIT"] == results["_best_unit"]].drop(columns=["_rank", "_share_key", "_best_unit"])
 
     col_order = [
         "TEST_NAME", "BIMODAL_STATUS", "BIMODAL_SEP", "BIMODAL_BC", "BIMODAL_DIP_P", "BIMODAL_OVERLAP",

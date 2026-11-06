@@ -159,8 +159,8 @@ Pipeline per TEST_NAME:
 One row per `(TEST_NAME, SUB_DIST)` — the best unit only. Best unit selection per sub-distribution:
 
 1. Deciding test quality: `PASS_at_KS` > `PASS_at_T` > `PASS_at_MAD` > `FAIL`
-2. `UNIT_PREVALENCE` descending as tiebreaker within the same quality tier — prefer the dominant unit when several pass the same test, since the KS statistic of a small target unit is noisy (e.g. u-ph: `form` 95% and `1` 3.5% both pass at KS; `form` is kept)
-3. KS statistic ascending (lower = better distributional fit) as final tiebreaker
+2. Within the KS and T tiers, `UNIT_PREVALENCE` descending as tiebreaker — prefer the dominant unit when several pass the same test, since the KS statistic of a small target unit is noisy (e.g. u-ph: `form` 95% and `1` 3.5% both pass at KS; `form` is kept)
+3. KS statistic ascending (lower = better distributional fit): the final tiebreaker, and the only one among units that pass the MAD test alone — MAD can let a whole other scale through (fs-trfesat: fraction values around 0.22 pass MAD against `%` values around 20, KS 0.99), so there the prevalence is not used
 
 With `--plots`, a `split_eval_{tag}.png` decision-tree figure is saved to `--dump-dir` for every TEST_NAME.
 
