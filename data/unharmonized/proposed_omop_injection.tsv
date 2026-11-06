@@ -1,0 +1,52 @@
+TEST_NAME_ABBREVIATION	source_unit_clean	source_unit_clean_fix	notes	INJECTION_NOTES	CONFIDENCE	VS_CURRENT_RULE	NEEDS	SUGGESTION_ID
+u-ph	1	ph	The values match the harmonized ph values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		916d82daff
+u-suhteellinentiheys	1	kg/l	The values match the harmonized kg/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		ff973c420d
+s-apob/apoa1-suhde	ratio	ratio	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New	Usagi row (s-apob/apoa1-suhde, ratio) → 3011831	e2fa2f2870
+p-tromboplastiiniaika,inr-tulos	1	inr	The values match the harmonized inr values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		bb4e109e18
+vb-o2-sis	ml/l	%	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		8516012657
+b-hemoglobiini-a1c	mmol/m	mmol/mol	The values match the harmonized mmol/mol values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		c702bc7faf
+fs-trfesat	osuus	ratio	100% of the rows with a range sit on the ratio range. The values pass only the loose MAD test (KS 0.01), so the patients differ from the harmonized rows rather than the unit.	SUGGESTED (Medium)	Medium	New		33dcf9f851
+fs-ca++/7.40		mmol/l	The values match the harmonized mmol/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New	Usagi row (fs-ca++/7.40, mmol/l) → 3016431	fbe6e99edf
+b-hba1c	mmol/m	mmol/mol	The values match the harmonized mmol/mol values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		c8cb353cd9
+neutrofiilit		%	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		a02b4aec50
+b-hba1c,t		mmol/mol	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New	Usagi row (b-hba1c,t, mmol/mol) → 3004410	f32b5e4d39
+s-osacdt	mg/l	mg/l	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New	Usagi row (s-osacdt, mg/l) → 3025059	583f778f8c
+s-osacdtr	g/l	g/l	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New	Usagi row (s-osacdtr, g/l) → 3004789	9892c70397
+b-pvk+tkd,trom	eg/l	e9/l	The values match the harmonized e9/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New	Usagi row (b-pvk+tkd,trom, e9/l) → 3007461	f134b72a26
+sy-solut	e6/l	NA	The values match the harmonized NA values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		5f26f5ea71
+b-pvk+tkd,ig	e9/l	%	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		37f5322595
+pt-gfre	form	ml/min/173m2	The values match the harmonized ml/min/173m2 values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		5c3ce190e8
+u-albkrea		mg/mmol	The values match the harmonized mg/mmol values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		db239df36e
+p-inr-pika	%	inr	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		c66e28af50
+u-bact		e6/l	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New	Usagi row (u-bact, e6/l) → 3031040	e159e9b8b8
+b-hkr	l/l	ratio	The values match the harmonized % values after × 100 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		7a314898c9
+p-gluk-vt	1	mmol/l	The values match the harmonized mmol/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		10d510e616
+vb-happamuusaste	1	ph	The values match the harmonized ph values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		ac6f34c460
+b-cd4	e9/l	e9/l	The values match the harmonized e9/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New	Usagi row (b-cd4, e9/l) → 3028167	3cb677279a
+b-cd8	e9/l	e9/l	The values match the harmonized e6/l values after × 1000 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New	Usagi row (b-cd8, e9/l) → 3001405	3e9b0f9d04
+s-b12-vitamiini,transkobalamiiniii:eensitoutunut		pmol/l	The values match the harmonized pmol/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		996d276e69
+c-reaktiivinenproteiini	1	mg/l	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		ac2a551d5d
+u-osmoest	e6/l	mosm/kgh2o	The values match the harmonized mosm/kgh2o values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		ae643e0a43
+s-tsh-abr	mu/l	iu/l	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		fbaaa73bf1
+s-borrabm	ru/ml	au/ml	The values match the harmonized au/ml values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		30b9331038
+s-chpnabg	eiu	u/ml	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		2c0c5efb06
+p-transferriinireseptori		mg/l	The values match the harmonized mg/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		45e2f2a109
+cd4	%/lumf	%	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		e0ecba0820
+s-chpnabg	bu/ml	u/ml	The values match the harmonized u/ml values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		ae0bcd0248
+s-borrabg	responseequivalent/ml	au/ml	100% of the rows with a range sit on the au/ml range. The values pass only the loose MAD test (KS 0.35), so the patients differ from the harmonized rows rather than the unit.	SUGGESTED (Medium)	Medium	New		f928af46dd
+p-inr-pik		inr	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		00be75925e
+s-cmvabg	eiu	au/ml	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		a629c3544f
+b-t-cd4	e6/l	e6/l	The values match the harmonized e9/l values after × 0.001 (decided by T), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New	Usagi row (b-t-cd4, e6/l) → 3028167	5f4242988f
+p-k-vt	1	mmol/l	The values match the harmonized mmol/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		98df2e6ad3
+b-hba1c	mmol	mmol/mol	The values match the harmonized mmol/mol values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		8fa47b439b
+cb-inrpika		inr	100% of the rows with a range sit on the inr range. The values pass only the loose MAD test (KS 0.62), so the patients differ from the harmonized rows rather than the unit.	SUGGESTED (Medium)	Medium	New	Usagi row (cb-inrpika, inr) → 3032080	9754cf1e61
+u-epitel	/sunf	u/field	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		d968f9c634
+p-krea	umol	umol/l	The values match the harmonized umol/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		becbfd072d
+b-hb	e9/l	g/l	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		33cc0f6499
+u-eryt	/sunf	u/field	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		75d9289b6b
+-eos	%	e9/l	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New	Usagi row (-eos, e9/l) → 3013115	5762514cbc
+-baso	%	e9/l	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New	Usagi row (-baso, e9/l) → 3006315	26ac07cb32
+-neut	%	e9/l	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New	Usagi row (-neut, e9/l) → 3017732	9065d4d5f5
+ab-ph	form	ph	The values match the harmonized ph values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		f189cdba98
+p-psa-suh	form	%	The values match the harmonized % values after × 1 (decided by KS), and most of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		1c03b17d3c
+p-kardabg	gpl	u/ml	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		695b27fae2

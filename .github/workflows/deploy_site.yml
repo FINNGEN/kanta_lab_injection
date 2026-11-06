@@ -1,0 +1,87 @@
+name: Deploy injection site
+
+# GitHub Pages hosts one site per repo, so every run rebuilds both branches into a single
+# artifact: master at the site root, dev under /dev/. Each branch is built with its own
+# site builder, data/ and README.md: scripts/site/build.py (also builds the unharmonized
+# portal from data/unharmonized/), or scripts/build_site.py on branches from before the move.
+
+on:
+  push:
+    branches: [master, dev]
+    paths:
+      - data/**
+      - scripts/build_site.py
+      - scripts/site/**
+      - README.md
+      - .github/workflows/deploy_site.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read          # review-issue status on the unharmonized portal
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: master
+
+      - name: Check for dev branch
+        id: dev
+        run: |
+          if git ls-remote --exit-code --heads "https://github.com/${{ github.repository }}" dev >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.dev.outputs.exists == 'true'
+        with:
+          ref: dev
+          path: dev
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pandas markdown
+
+      - name: Build master and dev sites
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEV_EXISTS: ${{ steps.dev.outputs.exists }}
+        run: |
+          base="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          build() {   # build <checkout> <out dir> <public url> <branch>
+            if [ -f "$1/scripts/site/build.py" ]; then
+              python3 "$1/scripts/site/build.py" --data-dir "$1/data" --readme "$1/README.md" \
+                --out-dir "$2" --repo "${{ github.repository }}" --site-url "$3" --branch "$4"
+            else
+              python3 "$1/scripts/build_site.py" --data-dir "$1/data" --readme "$1/README.md" --out-dir "$2"
+            fi
+          }
+          build master _site "$base/" master
+          if [ "$DEV_EXISTS" = "true" ]; then build dev _site/dev "$base/dev/" dev; fi
+
+      - uses: actions/configure-pages@v4
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

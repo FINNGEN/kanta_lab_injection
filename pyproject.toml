@@ -1,0 +1,24 @@
+[project]
+name = "kanta-lab-injection"
+version = "0.1.0"
+description = "Unit injection for unit-less Kanta lab measurements; produces injection_results.tsv for kanta_lab_preprocessing's engine"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "diptest>=0.11.0",
+    "markdown>=3.10.3",
+    "matplotlib",
+    "numpy",
+    "pandas>=3.0.2",
+    "scikit-learn>=1.9.0",
+    "scipy",
+]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.12.0",
+    "ruff>=0.15.10",
+]
+
+[tool.uv]
+package = false

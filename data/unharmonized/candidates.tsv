@@ -1,0 +1,147 @@
+GROUP_ID	CAND_ID	OMOP_ID	TARGET_UNIT	UNIT	SAME_SCALE_UNITS	CONVERSION_FACTOR	KS_STAT	KS_PASS	T_PASS	MAD_DIST	MAD_THRESHOLD	MAD_PASS	VALUES	VALUES_DECIDED_BY	RANGE_MATCH	RANGE_ASSIGNED	PICKED
+u-ph__1-6b23ac	3015736|ph|1	3015736	ph	ph		1.0	0.14832359207175283	True	False	0.5	1.5	True	PASS	KS	1.0	1.0	True
+u-suhteellinentiheys__1-e32b96	3019150|kg/l|1	3019150	kg/l	kg/l		1.0	0.014346035566909027	True	False	0.0	0.01200000000000001	True	PASS	KS	1.0	1.0	True
+s-apob_apoa1-suhde__ratio-7851fa	3011831|ratio|1	3011831	ratio	ratio		1.0	0.06816152724976987	True	False	0.030000000000000027	0.4199999999999999	True	PASS	KS			True
+p-tromboplastiiniaika_inr-tulos__1-c5a236	3032080|inr|1	3032080	inr	inr		1.0	0.2237728571428572	True	False	0.2999999999999998	1.799999999999999	True	PASS	KS	1.0	1.0	True
+vb-o2-sis__ml_l-658977	3004529|%|1	3004529	%	%		1.0	0.3721607030869786	False	False	23.700000000000003	68.99999999999999	True	PASS	MAD			True
+b-hemoglobiini-a1c__mmol_m-4c96e6	3004410|mmol/mol|1	3004410	mmol/mol	mmol/mol		1.0	0.07968618249296122	True	False	1.0	15.0	True	PASS	KS	1.0	1.0	True
+fs-trfesat__osuus-bff1eb	40763571|%|1	40763571	%	%		1.0	0.9898008076787912	False	False	21.78	24.0	True	PASS	MAD	0.0	0.0	False
+fs-trfesat__osuus-bff1eb	40763571|ratio|100	40763571	%	ratio		100.0	0.011692553998359112	False	False	0.0	0.23999999999999996	True	PASS	MAD	1.0	1.0	True
+fs-ca___7_40__NA-627474	3016431|pmol/l|1e-09	3016431	mmol/l	pmol/l		1e-09	1.0	False	False	1209999998.76	150000000.0	False	FAIL		0.0	0.0	False
+fs-ca___7_40__NA-627474	3016431|nmol/l|1e-06	3016431	mmol/l	nmol/l		1e-06	1.0	False	False	1209998.76	150000.0	False	FAIL		0.0	0.0	False
+fs-ca___7_40__NA-627474	3016431|umol/l|0.001	3016431	mmol/l	umol/l		0.001	1.0	False	False	1208.76	150.0	False	FAIL		0.0	0.0	False
+fs-ca___7_40__NA-627474	3016431|mmol/l|1	3016431	mmol/l	mmol/l		1.0	0.2931410978974408	True	False	0.030000000000000027	0.15000000000000013	True	PASS	KS	1.0	1.0	True
+fs-ca___7_40__NA-627474	3016431|mol/l|1000	3016431	mmol/l	mol/l		1000.0	1.0	False	False	1.23879	0.0001500000000000004	False	FAIL		0.0	0.0	False
+b-hba1c__mmol_m-d6731f	3004410|mmol/mol|1	3004410	mmol/mol	mmol/mol		1.0	0.10457878629152945	True	False	1.0	15.0	True	PASS	KS	1.0	1.0	True
+s-mypnabg__eiu-fa6358	3018387|au/ml|1	3018387	au/ml	au/ml		1.0	0.9243770048074708	False	False	107.9	7.199999999999999	False	FAIL		0.08080110497237569	0.08080110497237569	False
+b-hkr__fl-8de092	3009542|%|1	3009542	%	%	ml/dl|vol%	1.0	0.9997950000000001	False	False	50.0	12.0	False	FAIL		0.0	0.0	False
+b-hkr__fl-8de092	3009542|ratio|100	3009542	%	ratio		100.0	1.0	False	False	88.61	0.11999999999999994	False	FAIL				False
+erytrosyytit__e6_l-f40654	3026361|e6/l|1e-06	3026361	e12/l	e6/l		1e-06	0.999935	False	False	4329993.4	1320000.0	False	FAIL		0.0	0.0	False
+erytrosyytit__e6_l-f40654	3026361|e9/l|0.001	3026361	e12/l	e9/l		0.001	0.9753724401110984	False	False	4323.4	1319.9999999999973	False	FAIL		0.0	0.0	False
+erytrosyytit__e6_l-f40654	3026361|e12/l|1	3026361	e12/l	e12/l		1.0	0.5411088062724223	False	False	2.2699999999999996	1.3199999999999985	False	FAIL		0.0	0.0	False
+erytrosyytit__e6_l-f40654	3048402|u/field|1	3048402	u/field	u/field		1.0	0.6268031517229677	False	False	5.6	3.0	False	FAIL		0.0	0.0	False
+kalsium_ionisoitunutph__ph-5c96c0	3016431|pmol/l|1e-09	3016431	mmol/l	pmol/l		1e-09	1.0	False	False	1209999992.61	150000000.0	False	FAIL				False
+kalsium_ionisoitunutph__ph-5c96c0	3016431|nmol/l|1e-06	3016431	mmol/l	nmol/l		1e-06	1.0	False	False	1209992.61	150000.0	False	FAIL				False
+kalsium_ionisoitunutph__ph-5c96c0	3016431|umol/l|0.001	3016431	mmol/l	umol/l		0.001	1.0	False	False	1202.61	150.0	False	FAIL				False
+kalsium_ionisoitunutph__ph-5c96c0	3016431|mmol/l|1	3016431	mmol/l	mmol/l		1.0	0.9996877643816742	False	False	6.18	0.15000000000000013	False	FAIL				False
+kalsium_ionisoitunutph__ph-5c96c0	3016431|mol/l|1000	3016431	mmol/l	mol/l		1000.0	1.0	False	False	7.388789999999999	0.0001500000000000004	False	FAIL				False
+neutrofiilit__NA-d352c4	3017732|e6/l|0.001	3017732	e9/l	e6/l		0.001	0.998595	False	False	3746.0	3690.0000000000014	False	FAIL				False
+neutrofiilit__NA-d352c4	3017732|e9/l|1	3017732	e9/l	e9/l		1.0	0.6827506327218271	False	False	30.22	3.6900000000000013	False	FAIL				False
+neutrofiilit__NA-d352c4	3017732|e12/l|1000	3017732	e9/l	e12/l		1000.0	0.9771621115687008	False	False	33.99622	0.003690000000000002	False	FAIL				False
+neutrofiilit__NA-d352c4	3018010|%|1	3018010	%	%	%/lymf	1.0	0.4576900561587421	False	False	24.299999999999997	26.10000000000001	True	PASS	MAD			True
+b-hba1c_t__NA-275372	3004410|mmol/mol|1	3004410	mmol/mol	mmol/mol		1.0	0.34499587002096443	False	False	12.0	15.0	True	PASS	MAD			True
+s-osacdt__mg_l-881100	3025059|ng/l|1e-06	3025059	mg/l	ng/l		1e-06	1.0	False	False	41599959.4	19500000.0	False	FAIL				False
+s-osacdt__mg_l-881100	3025059|ng/ml|0.001	3025059	mg/l	ng/ml	ug/l	0.001	1.0	False	False	41559.4	19500.0	False	FAIL				False
+s-osacdt__mg_l-881100	3025059|mg/l|1	3025059	mg/l	mg/l		1.0	0.07098114357508561	True	False	1.0	19.5	True	PASS	KS			True
+s-osacdt__mg_l-881100	3025059|g/l|1000	3025059	mg/l	g/l	mg/ml	1000.0	1.0	False	False	40.5584	0.019499999999999997	False	FAIL				False
+s-osacdtr__g_l-e2a672	3004789|ng/l|1e-09	3004789	g/l	ng/l		1e-09	0.999995	False	False	2209999997.45	1170000000.0	False	FAIL				False
+s-osacdtr__g_l-e2a672	3004789|ng/ml|1e-06	3004789	g/l	ng/ml	ug/l	1e-06	0.999995	False	False	2209997.45	1170000.0	False	FAIL				False
+s-osacdtr__g_l-e2a672	3004789|mg/l|0.001	3004789	g/l	mg/l		0.001	0.999995	False	False	2207.45	1170.0	False	FAIL				False
+s-osacdtr__g_l-e2a672	3004789|g/l|1	3004789	g/l	g/l	mg/ml	1.0	0.30560144250168125	False	False	0.33999999999999986	1.1700000000000004	True	PASS	MAD			True
+b-pvk_tkd_trom__eg_l-869679	3007461|e6/l|0.001	3007461	e9/l	e6/l		0.001	0.99999	False	False	246753.0	156000.0	False	FAIL		0.0	0.0	False
+b-pvk_tkd_trom__eg_l-869679	3007461|e9/l|1	3007461	e9/l	e9/l		1.0	0.02572846363018355	True	True	0.0	156.0	True	PASS	KS	1.0	1.0	True
+b-pvk_tkd_trom__eg_l-869679	3007461|e12/l|1000	3007461	e9/l	e12/l		1000.0	1.0	False	False	246.753	0.15599999999999997	False	FAIL		0.0	0.0	False
+sy-solut__e6_l-f8a88f	3044941|NA|1	3044941	NA	NA		1.0	0.08919482760397579	True	False	1008.0	3624.0	True	PASS	KS	1.0	1.0	True
+b-pvk_tkd_ig__e9_l-5cc32e	3034092|%|1	3034092	%	%	%/lymf	1.0	0.8142390880234532	False	False	0.19	0.30000000000000004	True	PASS	MAD			True
+pt-gfre__form-165ca3	40764999|ml/min/173m2|1	40764999	ml/min/173m2	ml/min/173m2		1.0	0.1639163262599469	True	False	10.0	48.0	True	PASS	KS	1.0	1.0	True
+pt-gfre__form-165ca3	40764999|ml/s/173m2|60	40764999	ml/min/173m2	ml/s/173m2		59.999988	1.0	False	False	68.66666639999994	0.8000001600000317	False	FAIL		0.0	0.0	False
+u-albkrea__NA-9e9387	3020682|mg/mmol|1	3020682	mg/mmol	mg/mmol	g/mol	1.0	0.17395589699359293	True	False	2.0	3.5999999999999996	True	PASS	KS	1.0	1.0	True
+p-inr-pika___-e343a8	3032080|inr|1	3032080	inr	inr		1.0	0.2551731034482759	True	False	0.3999999999999999	1.799999999999999	True	PASS	KS			True
+u-bact__NA-5dbee0	3031040|e6/l|1	3031040	e6/l	e6/l		1.0	0.06965031464236004	True	False	2.950000000000003	45.0	True	PASS	KS			True
+u-bact__NA-5dbee0	3031040|e9/l|1000	3031040	e6/l	e9/l		1000.0	0.7522190103344927	False	False	17.935000000000002	0.045	False	FAIL				False
+u-bact__NA-5dbee0	3031040|e12/l|1e+06	3031040	e6/l	e12/l		1000000.0	0.9526258798050893	False	False	17.949985	4.5e-05	False	FAIL				False
+b-hkr__l_l-610cdd	3009542|%|1	3009542	%	%	ml/dl|vol%	1.0	0.9933664995857499	False	False	38.59	12.0	False	FAIL		0.0	0.0	False
+b-hkr__l_l-610cdd	3009542|ratio|100	3009542	%	ratio		100.0	0.19997058271195806	True	False	0.019999999999999962	0.11999999999999994	True	PASS	KS	1.0	1.0	True
+p-gluk-vt__1-629c46	3013826|pmol/l|1e-09	3013826	mmol/l	pmol/l		1e-09	1.0	False	False	6599999991.799999	3599999999.999997	False	FAIL		0.0	0.0	False
+p-gluk-vt__1-629c46	3013826|nmol/l|1e-06	3013826	mmol/l	nmol/l		1e-06	1.0	False	False	6599991.8	3599999.999999997	False	FAIL		0.0	0.0	False
+p-gluk-vt__1-629c46	3013826|umol/l|0.001	3013826	mmol/l	umol/l		0.001	1.0	False	False	6591.799999999999	3599.9999999999973	False	FAIL		0.0	0.0	False
+p-gluk-vt__1-629c46	3013826|mmol/l|1	3013826	mmol/l	mmol/l		1.0	0.24226720840734173	True	False	1.5999999999999996	3.599999999999998	True	PASS	KS	1.0	1.0	True
+p-gluk-vt__1-629c46	3013826|mol/l|1000	3013826	mmol/l	mol/l		1000.0	0.9997039668442865	False	False	8.193399999999999	0.003599999999999999	False	FAIL		0.0	0.0	False
+e-mcv___-7319d1	3024731|fl|1	3024731	fl	fl		1.0	0.9981078524124882	False	False	77.8	9.0	False	FAIL		0.013986013986013986	0.013986013986013986	False
+vb-happamuusaste__1-289a83	3012544|ph|1	3012544	ph	ph		1.0	0.06414089613679552	True	False	0.009999999999999787	0.1200000000000001	True	PASS	KS	1.0	1.0	True
+b-cd4__e9_l-4a3688	3028167|e6/l|0.001	3028167	e9/l	e6/l		0.001	0.9972901066875708	False	False	539.59	879.0	True	PASS	MAD	0.0	0.0	False
+b-cd4__e9_l-4a3688	3028167|e9/l|1	3028167	e9/l	e9/l		1.0	0.128455340134339	True	False	0.13000000000000006	0.8789999999999998	True	PASS	KS	1.0	1.0	True
+b-cd4__e9_l-4a3688	3028167|e12/l|1000	3028167	e9/l	e12/l		1000.0	0.9991421390493994	False	False	0.40946	0.0008789999999999999	False	FAIL		0.0	0.0	False
+b-cd8__e9_l-20b4b4	3001405|e6/l|1	3001405	e6/l	e6/l		1.0	0.9966549838875537	False	False	443.64	702.0	True	PASS	MAD	0.0	0.0	False
+b-cd8__e9_l-20b4b4	3001405|e9/l|1000	3001405	e6/l	e9/l		1000.0	0.10588870500613706	True	False	0.08400000000000002	0.7020000000000001	True	PASS	KS	1.0	1.0	True
+b-cd8__e9_l-20b4b4	3001405|e12/l|1e+06	3001405	e6/l	e12/l		1000000.0	0.9996233048719237	False	False	0.359556	0.0007019999999999999	False	FAIL		0.0	0.0	False
+s-cmvabg__u_ml-b27536	3010130|au/ml|1	3010130	au/ml	au/ml		1.0	0.39129074061443414	False	False	38.0	150.0	True	PASS	MAD	0.0	0.0	False
+s-borrabm__responseequivalent_ml-476012	3008230|au/ml|1	3008230	au/ml	au/ml		1.0	0.39969313387034905	False	False	0.9000000000000004	24.299999999999997	True	PASS	MAD	0.0	0.0	False
+s-b12-vitamiini_transkobalamiiniii_eensitoutunut__NA-7c3d2d	43054903|pmol/l|1	43054903	pmol/l	pmol/l		1.0	0.1919459269967474	True	False	12.0	72.0	True	PASS	KS	1.0	1.0	True
+s-b12-vitamiini_transkobalamiiniii_eensitoutunut__NA-7c3d2d	43054903|nmol/l|1000	43054903	pmol/l	nmol/l		1000.0	1.0	False	False	107.904	0.07200000000000002	False	FAIL		0.0	0.0	False
+s-b12-vitamiini_transkobalamiiniii_eensitoutunut__NA-7c3d2d	43054903|umol/l|1e+06	43054903	pmol/l	umol/l		1000000.0	1.0	False	False	107.999904	7.2e-05	False	FAIL		0.0	0.0	False
+s-b12-vitamiini_transkobalamiiniii_eensitoutunut__NA-7c3d2d	43054903|mmol/l|1e+09	43054903	pmol/l	mmol/l		1000000000.0	1.0	False	False	107.999999904	7.200000000000001e-08	False	FAIL		0.0	0.0	False
+s-b12-vitamiini_transkobalamiiniii_eensitoutunut__NA-7c3d2d	43054903|mol/l|1e+12	43054903	pmol/l	mol/l		1000000000000.0	1.0	False	False	107.999999999904	7.200000000000002e-11	False	FAIL		0.0	0.0	False
+s-gt-cdt__NA-9e479d	3003031|%|1	3003031	%	%		1.0	0.8665664812786189	False	False	1.9	0.9000000000000001	False	FAIL				False
+c-reaktiivinenproteiini__1-4165c7	3020460|ng/l|1e-06	3020460	mg/l	ng/l		1e-06	0.99976	False	False	19999976.0	49800000.0	True	PASS	MAD			False
+c-reaktiivinenproteiini__1-4165c7	3020460|ng/ml|0.001	3020460	mg/l	ng/ml	ug/l	0.001	0.999235	False	False	19976.0	49800.0	True	PASS	MAD			False
+c-reaktiivinenproteiini__1-4165c7	3020460|mg/l|1	3020460	mg/l	mg/l		1.0	0.1775754918032787	True	False	4.0	49.800000000000004	True	PASS	KS			True
+c-reaktiivinenproteiini__1-4165c7	3020460|g/l|1000	3020460	mg/l	g/l	mg/ml	1000.0	1.0	False	False	23.98	0.0498	False	FAIL				False
+u-osmoest__e6_l-23b48e	3026782|mosm/kgh2o|1	3026782	mosm/kgh2o	mosm/kgh2o		1.0	0.16818793899422924	True	False	70.0	432.0	True	PASS	KS	1.0	1.0	True
+s-tsh-abr__mu_l-817ddd	3017044|miu/l|0.001	3017044	iu/l	miu/l	mu/l	0.001	0.9986083191588062	False	False	3398.5	4500.000000000001	True	PASS	MAD			False
+s-tsh-abr__mu_l-817ddd	3017044|iu/l|1	3017044	iu/l	iu/l	miu/ml|u/l	1.0	0.4469090947482428	False	False	1.9	4.5	True	PASS	MAD			True
+s-tsh-abr__mu_l-817ddd	3017044|iu/ml|1000	3017044	iu/l	iu/ml	eliau/ml|kiu/l|u/ml	1000.0	0.9979897943404978	False	False	1.4966	0.0045	False	FAIL				False
+s-borrabm__ru_ml-1e23c6	3008230|au/ml|1	3008230	au/ml	au/ml		1.0	0.14336414741063008	True	False	2.799999999999999	24.299999999999997	True	PASS	KS	1.0	1.0	True
+s-chpnabg__eiu-0f35c9	3038769|iu/l|0.001	3038769	u/ml	iu/l	miu/l|miu/ml|mu/l|u/l	0.001	0.9902617163724894	False	False	37919.0	78000.0	True	PASS	MAD			False
+s-chpnabg__eiu-0f35c9	3038769|u/ml|1	3038769	u/ml	u/ml	eliau/ml|iu/ml|kiu/l	1.0	0.44190665342601787	False	False	43.0	78.0	True	PASS	MAD			True
+p-transferriinireseptori__NA-1f643f	3015399|ng/l|1e-06	3015399	mg/l	ng/l		1e-06	1.0	False	False	2799996.6	3900000.0	True	PASS	MAD	0.0	0.0	False
+p-transferriinireseptori__NA-1f643f	3015399|ng/ml|0.001	3015399	mg/l	ng/ml	ug/l	0.001	1.0	False	False	2796.5999999999995	3899.9999999999986	True	PASS	MAD	0.0	0.0	False
+p-transferriinireseptori__NA-1f643f	3015399|mg/l|1	3015399	mg/l	mg/l		1.0	0.27066136363636367	True	False	0.6000000000000001	3.8999999999999995	True	PASS	KS	1.0	1.0	True
+p-transferriinireseptori__NA-1f643f	3015399|g/l|1000	3015399	mg/l	g/l	mg/ml	1000.0	1.0	False	False	3.3971999999999998	0.0038999999999999985	False	FAIL		0.0	0.0	False
+cd4____lumf-f2bbbc	21494815|%|1	21494815	%	%	%/lymf	1.0	0.05965115084258116	True	False	1.3999999999999986	34.5	True	PASS	KS			True
+s-chpnabg__bu_ml-4c8b87	3038769|iu/l|0.001	3038769	u/ml	iu/l	miu/l|miu/ml|mu/l|u/l	0.001	0.9902617163724894	False	False	37984.6	78000.0	True	PASS	MAD	0.0	0.0	False
+s-chpnabg__bu_ml-4c8b87	3038769|u/ml|1	3038769	u/ml	u/ml	eliau/ml|iu/ml|kiu/l	1.0	0.2521382580004485	True	False	22.6	78.0	True	PASS	KS	1.0	1.0	True
+s-borrabg__responseequivalent_ml-4a0cf0	3016888|au/ml|1	3016888	au/ml	au/ml		1.0	0.3461570007208782	False	False	13.8	59.400000000000006	True	PASS	MAD	1.0	1.0	True
+p-inr-pik__NA-13e6e3	3032080|inr|1	3032080	inr	inr		1.0	0.25708654851830337	True	False	0.19999999999999973	1.799999999999999	True	PASS	KS			True
+s-cmvabg__eiu-e07fc8	3010130|au/ml|1	3010130	au/ml	au/ml		1.0	0.6501207434089771	False	False	102.0	150.0	True	PASS	MAD			True
+b-t-cd4__e6_l-88a097	3028167|e6/l|0.001	3028167	e9/l	e6/l		0.001	0.03269691503379657	False	True	8.0	879.0	True	PASS	T	1.0	1.0	True
+b-t-cd4__e6_l-88a097	3028167|e9/l|1	3028167	e9/l	e9/l		1.0	0.9986353445754946	False	False	547.46	0.8789999999999998	False	FAIL		0.0	0.0	False
+b-t-cd4__e6_l-88a097	3028167|e12/l|1000	3028167	e9/l	e12/l		1000.0	1.0	False	False	547.99946	0.0008789999999999999	False	FAIL		0.0	0.0	False
+p-k-vt__1-f7b74e	3023103|pmol/l|1e-09	3023103	mmol/l	pmol/l		1e-09	1.0	False	False	3999999996.0999994	899999999.9999986	False	FAIL		0.0	0.0	False
+p-k-vt__1-f7b74e	3023103|nmol/l|1e-06	3023103	mmol/l	nmol/l		1e-06	1.0	False	False	3999996.1	899999.9999999986	False	FAIL		0.0	0.0	False
+p-k-vt__1-f7b74e	3023103|umol/l|0.001	3023103	mmol/l	umol/l		0.001	1.0	False	False	3996.1	900.0	False	FAIL		0.0	0.0	False
+p-k-vt__1-f7b74e	3023103|mmol/l|1	3023103	mmol/l	mmol/l		1.0	0.0629308111792774	True	False	0.10000000000000009	0.8999999999999995	True	PASS	KS	1.0	1.0	True
+p-k-vt__1-f7b74e	3023103|mol/l|1000	3023103	mmol/l	mol/l		1000.0	1.0	False	False	3.896	0.0008999999999999998	False	FAIL		0.0	0.0	False
+b-erytbl__u_100l-86326c	3021589|e6/l|0.001	3021589	e9/l	e6/l		0.001	0.6925366986959507	False	False	1.0	0.0	False	FAIL				False
+b-erytbl__u_100l-86326c	3021589|e9/l|1	3021589	e9/l	e9/l		1.0	0.7304816986959507	False	False	1.0	0.0	False	FAIL				False
+b-erytbl__u_100l-86326c	3021589|e12/l|1000	3021589	e9/l	e12/l		1000.0	0.7323266986959506	False	False	1.0	0.0	False	FAIL				False
+b-hba1c__mmol-d101da	3004410|mmol/mol|1	3004410	mmol/mol	mmol/mol		1.0	0.046595751658069284	True	True	1.0	15.0	True	PASS	KS	1.0	1.0	True
+cb-inrpika__NA-c361cf	3032080|inr|1	3032080	inr	inr		1.0	0.6174845754359363	False	False	1.2000000000000002	1.799999999999999	True	PASS	MAD	1.0	1.0	True
+u-epitel___sunf-1cd13e	3051014|u/field|1	3051014	u/field	u/field		1.0	0.30984003480874567	False	False	1.0	3.0	True	PASS	MAD			True
+p-krea__umol-861266	3020564|pmol/l|1e-06	3020564	umol/l	pmol/l		1e-06	1.0	False	False	75999924.0	45000000.0	False	FAIL		0.0	0.0	False
+p-krea__umol-861266	3020564|nmol/l|0.001	3020564	umol/l	nmol/l		0.001	1.0	False	False	75924.0	45000.0	False	FAIL		0.0	0.0	False
+p-krea__umol-861266	3020564|umol/l|1	3020564	umol/l	umol/l		1.0	0.05064121621621623	True	False	0.0	45.0	True	PASS	KS	1.0	1.0	True
+p-krea__umol-861266	3020564|mmol/l|1000	3020564	umol/l	mmol/l		1000.0	1.0	False	False	75.924	0.045	False	FAIL		0.0	0.0	False
+p-krea__umol-861266	3020564|mol/l|1e+06	3020564	umol/l	mol/l		1000000.0	1.0	False	False	75.999924	4.5000000000000016e-05	False	FAIL		0.0	0.0	False
+b-hb__e9_l-6b420f	3000963|ng/l|1e-09	3000963	g/l	ng/l		1e-09	1.0	False	False	130999999867.99998	39000000000.000046	False	FAIL				False
+b-hb__e9_l-6b420f	3000963|ng/ml|1e-06	3000963	g/l	ng/ml	ug/l	1e-06	1.0	False	False	130999868.0	39000000.0	False	FAIL				False
+b-hb__e9_l-6b420f	3000963|mg/l|0.001	3000963	g/l	mg/l		0.001	1.0	False	False	130868.0	39000.0	False	FAIL				False
+b-hb__e9_l-6b420f	3000963|g/l|1	3000963	g/l	g/l	mg/ml	1.0	0.05609374592833876	True	False	1.0	39.0	True	PASS	KS			True
+u-eryt__form-3274bb	3002582|e6/l|1	3002582	e6/l	e6/l		1.0	0.6782627824267782	False	False	9.2	20.400000000000002	True	PASS	MAD			False
+u-eryt__form-3274bb	3002582|e9/l|1000	3002582	e6/l	e9/l		1000.0	0.48648757322175734	False	False	0.0092	0.0204	True	PASS	MAD	0.0	0.0	False
+u-eryt__form-3274bb	3002582|e12/l|1e+06	3002582	e6/l	e12/l		1000000.0	0.48648757322175734	False	False	9.2e-06	2.0399999999999998e-05	True	PASS	MAD	0.0	0.0	False
+retikulosyytit__e9_l-7ba75a	3021584|mu/l|1	3021584	mu/l	mu/l	miu/l	1.0	0.9159315987921836	False	False	781.0	1280.1	True	PASS	MAD	0.0	0.0	False
+retikulosyytit__e9_l-7ba75a	3021584|eliau/ml|1000	3021584	mu/l	eliau/ml	iu/l|iu/ml|kiu/l|miu/ml|u/l|u/ml	1000.0	0.9905266396744242	False	False	67.151	1.2801	False	FAIL		0.0	0.0	False
+u-eryt___sunf-e6c12e	3002582|e6/l|1	3002582	e6/l	e6/l		1.0	0.6944061336717428	False	False	8.2	20.400000000000002	True	PASS	MAD			False
+u-eryt___sunf-e6c12e	3002582|e9/l|1000	3002582	e6/l	e9/l		1000.0	0.5045748054145517	False	False	0.9908	0.0204	False	FAIL				False
+u-eryt___sunf-e6c12e	3002582|e12/l|1e+06	3002582	e6/l	e12/l		1000000.0	0.5287648054145516	False	False	0.9999908	2.0399999999999998e-05	False	FAIL				False
+u-eryt___sunf-e6c12e	3048402|u/field|1	3048402	u/field	u/field		1.0	0.0881177958181385	True	False	0.0	3.0	True	PASS	KS			True
+-eos___-557076	3013115|e6/l|0.001	3013115	e9/l	e6/l		0.001	0.929975	False	False	149.973	240.0	True	PASS	MAD			False
+-eos___-557076	3013115|e9/l|1	3013115	e9/l	e9/l		1.0	0.6970272448979591	False	False	0.123	0.24000000000000005	True	PASS	MAD			True
+-eos___-557076	3013115|e12/l|1000	3013115	e9/l	e12/l		1000.0	0.9262094897959184	False	False	0.02685	0.00024000000000000006	False	FAIL				False
+-baso___-073676	3006315|e6/l|0.001	3006315	e9/l	e6/l		0.001	0.90786	False	False	39.997	60.0	True	PASS	MAD			False
+-baso___-073676	3006315|e9/l|1	3006315	e9/l	e9/l		1.0	0.8617849146757679	False	False	0.037	0.06	True	PASS	MAD			True
+-baso___-073676	3006315|e12/l|1000	3006315	e9/l	e12/l		1000.0	0.962325034129693	False	False	0.00296	6.000000000000001e-05	False	FAIL				False
+-neut___-45d01e	3017732|e6/l|0.001	3017732	e9/l	e6/l		0.001	0.99894	False	False	3779.443	3690.0000000000014	False	FAIL				False
+-neut___-45d01e	3017732|e9/l|1	3017732	e9/l	e9/l		1.0	0.967101638225256	False	False	3.2230000000000003	3.6900000000000013	True	PASS	MAD			True
+-neut___-45d01e	3017732|e12/l|1000	3017732	e9/l	e12/l		1000.0	0.9997650000000001	False	False	0.55322	0.003690000000000002	False	FAIL				False
+-mono___-b8fd77	3001604|e6/l|0.001	3001604	e9/l	e6/l		0.001	0.99953	False	False	569.9039999999999	449.99999999999966	False	FAIL				False
+-mono___-b8fd77	3001604|e9/l|1	3001604	e9/l	e9/l		1.0	0.9689943701466782	False	False	0.474	0.4499999999999999	False	FAIL				False
+-mono___-b8fd77	3001604|e12/l|1000	3001604	e9/l	e12/l		1000.0	0.9999950000000001	False	False	0.09543	0.0004499999999999999	False	FAIL				False
+b-neutrofiilit___-bf8ee5	3017732|e6/l|0.001	3017732	e9/l	e6/l		0.001	0.9979206319702602	False	False	3730.0	3690.0000000000014	False	FAIL		0.0	0.0	False
+b-neutrofiilit___-bf8ee5	3017732|e9/l|1	3017732	e9/l	e9/l		1.0	0.6786448698884759	False	False	46.22	3.6900000000000013	False	FAIL		0.010398613518197574	0.010398613518197574	False
+b-neutrofiilit___-bf8ee5	3017732|e12/l|1000	3017732	e9/l	e12/l		1000.0	0.9999800000000001	False	False	49.99622	0.003690000000000002	False	FAIL		0.0	0.0	False
+ab-ph__form-eba8ae	3019977|ph|1	3019977	ph	ph		1.0	0.1575521641791045	True	False	0.009999999999999787	0.1200000000000001	True	PASS	KS	1.0	1.0	True
+p-psa-suh__form-6887ad	3001784|%|1	3001784	%	%		1.0	0.054853536585365875	True	True	1.0	20.700000000000003	True	PASS	KS			True
+p-kardabg__gpl-7be186	3009041|iu/l|0.001	3009041	u/ml	iu/l	miu/l|miu/ml|mu/l|u/l	0.001	1.0	False	False	1998.0	3000.0	True	PASS	MAD	0.0	0.0	False
+p-kardabg__gpl-7be186	3009041|u/ml|1	3009041	u/ml	u/ml	eliau/ml|iu/ml|kiu/l	1.0	0.07424168533683562	True	False	0.0	3.0	True	PASS	KS			True
