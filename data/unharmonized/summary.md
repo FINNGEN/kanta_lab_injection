@@ -1,10 +1,10 @@
 # Unharmonized suggestions
 
-Input `/mnt/disks/data/kanta/engine/kanta_R15_dev_2026_11_05/kanta_R15_dev_2026_11_05.parquet`. 516 groups (test × unit, rows with a numeric value), 3,204,873 rows: 64 decidable with ≥ 1,000 failed rows (963,706 rows), 452 not decidable with ≥ 1,000.
+Input `/mnt/disks/data/kanta/engine/kanta_R15_dev_2026_11_06/kanta_R15_dev_2026_11_06.parquet`. 514 groups (test × unit, rows with a numeric value), 2,531,898 rows: 62 decidable with ≥ 1,000 failed rows (290,731 rows), 452 not decidable with ≥ 1,000.
 
 | Result | Confidence | Groups | Rows |
 | --- | --- | ---: | ---: |
-| Suggest fix | High | 23 | 799,265 |
+| Suggest fix | High | 21 | 126,290 |
 | Suggest fix | Medium | 22 | 73,103 |
 | Unit is right: approve the Usagi row | High | 3 | 7,686 |
 | Unit is right: approve the Usagi row | Medium | 3 | 32,293 |
@@ -16,8 +16,8 @@ Input `/mnt/disks/data/kanta/engine/kanta_R15_dev_2026_11_05/kanta_R15_dev_2026_
 
 | Concept | Groups | Rows |
 | --- | ---: | ---: |
-| Concept taken from the test's other units | 15 | 797,154 |
+| Concept taken from the test's other units | 14 | 125,946 |
 | Mapped in Usagi, conversion failed | 17 | 56,519 |
 | No concept in Usagi | 421 | 2,047,103 |
-| Pair waiting for Usagi review | 60 | 288,932 |
+| Pair waiting for Usagi review | 59 | 287,165 |
 | Test maps to several concepts | 3 | 15,165 |
