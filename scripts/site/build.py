@@ -8,7 +8,8 @@ build.py — build the whole site.
 The unharmonized section is built only when data/unharmonized/groups.tsv exists; the
 primary pages then get an "Unharmonized" link in their nav.
 
-Review issues: the portal's group pages open GitHub issues titled "[unharm] <test> · <unit>" in
+Review issues: the portal's group pages open GitHub issues titled "[unharm] <test> · <unit>", and
+the checked secondary rules' pages "[unharm-check] <test> · <unit> → <fix>", in
 FINNGEN/kanta_lab_harmonisation_public (--issue-repo); their figures are served from this repo. Their status is read here from the GitHub API (token from
 GITHUB_TOKEN when set, e.g. in Actions), or from --issues-json for local tests; when
 neither works the pages just show "no issue yet" and check again live in the browser.
@@ -40,8 +41,9 @@ DEFAULT_SITE = "https://finngen.github.io/kanta_lab_injection/"
 
 def fetch_issues(repo, prefix="[unharm] ", pages=10, timeout=15):
     """title -> {number, state, url, sid} for every issue in `repo` whose title starts with the prefix
-    (open and closed); sid is the suggestion id written in the issue body, to tell when a suggestion
-    has changed since. Searched by title, so the repo needs no special label."""
+    (open and closed); sid is the suggestion id ("Suggestion id: …") or, for a rule check, the
+    validation id ("Validation id: …") written in the issue body, to tell when it has changed since.
+    Searched by title, so the repo needs no special label."""
     out = {}
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "kanta-lab-injection-site"}
     if os.environ.get("GITHUB_TOKEN"):
@@ -54,7 +56,7 @@ def fetch_issues(repo, prefix="[unharm] ", pages=10, timeout=15):
         for it in items:
             if "pull_request" in it or not it["title"].startswith(prefix):
                 continue
-            m = re.search(r"Suggestion id: `([0-9a-f]+)`", it.get("body") or "")
+            m = re.search(r"(?:Suggestion|Validation) id: `([0-9a-f]+)`", it.get("body") or "")
             out.setdefault(it["title"], {"number": it["number"], "state": it["state"], "url": it["html_url"],
                                          "sid": m.group(1) if m else ""})
         if len(items) < 100:
@@ -97,7 +99,8 @@ def main():
             at = f"{args.issues_json.name}"
         elif not args.no_github:
             try:
-                issues = fetch_issues(args.issue_repo)
+                # suggestions ("[unharm] …") and rule checks ("[unharm-check] …"), searched apart
+                issues = {**fetch_issues(args.issue_repo), **fetch_issues(args.issue_repo, prefix="[unharm-check] ")}
                 at = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
             except Exception as e:      # offline, rate-limited, private repo without token
                 print(f"Issue statuses not available ({e}); pages will check live.")

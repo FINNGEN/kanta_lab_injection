@@ -9,6 +9,8 @@ scripts/common/disclosure.py (see suggest.py's privacy notes):
   * group people (N_SUBJECTS) under the minimum, a concept's harmonized rows / people published
     under the minimum, rows with a range (N_RANGED) published at all;
   * counts written into the reason texts ("… rows");
+  * validated.tsv (the checked secondary rules): people under the minimum, rows or shares shown for a
+    rule whose people are hidden (BELOW_THRESHOLD), the same N_TARGET and reason checks;
   * row-level detail in the plot data (curves, histograms), unknown keys, percentiles of groups too
     small to show a distribution, range pairs / history paths with fewer rows than the minimum.
 
@@ -31,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common import disclosure as dc   # noqa: E402
 
 GROUP_KEYS = {"group", "ranges", "candidates", "concepts", "context", "picked", "reason"}
-CAND_KEYS = {"unit", "cf", "omop", "target_unit", "same", "plot"}
+CAND_KEYS = {"unit", "cf", "shift", "omop", "target_unit", "same", "plot"}
 CONCEPT_KEYS = {"target_unit", "name", "n_target", "clusters"}
 CLUSTER_KEYS = {"LOWER", "UPPER", "SHARE"}
 ROW_COUNT = re.compile(r"\d[\d,]*\s+rows?\b")
@@ -63,6 +65,34 @@ def check_groups(path, problems, min_target_n):
         for col in ("REASON", "NEEDS"):
             if ROW_COUNT.search(str(r.get(col, ""))):
                 problems.append(f"{where}: a row count in {col}: {ROW_COUNT.search(str(r[col])).group(0)!r}")
+
+
+def check_validated(path, problems, min_target_n):
+    """validated.tsv: a rule's rows and people are both shown (people >= minimum) or both hidden
+    (BELOW_THRESHOLD), or empty for a rule not applied; nothing else is counted for hidden ones."""
+    df = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
+    for col in ("N_ROWS", "N_SUBJECTS", "VALIDATION"):
+        if col not in df.columns:
+            problems.append(f"{path.name}: no {col} column")
+            return
+    for i, r in df.iterrows():
+        where = f"{path.name} row {i + 2} ({r.get('TEST_NAME')} · {r.get('SOURCE_UNIT')} → {r.get('RULE_FIX')})"
+        dc.check_count(r["N_SUBJECTS"], f"{where} N_SUBJECTS", problems)
+        hidden = r["N_SUBJECTS"] in ("", dc.BELOW)
+        # people hidden → rows hidden the same way; rows alone may be left out (a total that would
+        # give another group's rows away)
+        if (r["N_SUBJECTS"] == dc.BELOW) != (r["N_ROWS"] == dc.BELOW) or (r["N_SUBJECTS"] == "" and r["N_ROWS"] != ""):
+            problems.append(f"{where}: N_ROWS {r['N_ROWS']!r} and N_SUBJECTS {r['N_SUBJECTS']!r} must be hidden together")
+        if hidden:
+            for col in ("SHARE_HARMONIZED", "RANGE_COVERAGE", "RANGE_MATCH", "KS_STAT", "N_TARGET"):
+                if r.get(col, "") != "":
+                    problems.append(f"{where}: {col} published for a rule whose people are not shown")
+        n_t, p_t = _num(r.get("N_TARGET")), r.get("N_TARGET_SUBJECTS", "")
+        if r.get("N_TARGET", "") != "" and (n_t is None or n_t < min_target_n or p_t == ""):
+            problems.append(f"{where}: N_TARGET {r.get('N_TARGET')} published (minimum {min_target_n} rows, with people)")
+        dc.check_count(p_t, f"{where} N_TARGET_SUBJECTS", problems)
+        if ROW_COUNT.search(str(r.get("REASON", ""))):
+            problems.append(f"{where}: a row count in REASON: {ROW_COUNT.search(str(r['REASON'])).group(0)!r}")
 
 
 def check_plot_data(path, problems, min_target_n):
@@ -105,6 +135,8 @@ def check_release(rel_dir, min_target_n=100):
     for name in ("groups.tsv", "decidable.tsv", "not_decidable.tsv"):
         if (rel_dir / name).exists():
             check_groups(rel_dir / name, problems, min_target_n)
+    if (rel_dir / "validated.tsv").exists():
+        check_validated(rel_dir / "validated.tsv", problems, min_target_n)
     path = rel_dir / "plot_data.json.gz"
     if path.exists():
         check_plot_data(path, problems, min_target_n)

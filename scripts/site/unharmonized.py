@@ -3,15 +3,20 @@ unharmonized.py
 
 Portal pages for the unharmonized suggestions (scripts/unharmonized/suggest.py output):
 
-  unharmonized/index.html            overview of every group, filterable
+  unharmonized/index.html            overview of every group, filterable; tabs Decidable,
+                                     Not decidable, Validated decisions (the checked secondary
+                                     rules, validated.tsv) and Resolved
   unharmonized/groups/<group>.html   one page per group: the suggestion, the evidence per
                                      candidate unit, the values and reference-range figures,
                                      the raw unit spellings
+  unharmonized/groups/val__<rule>.html  one page per checked rule with data: the rule against
+                                     the engine's unit, and the same evidence for the rule's rows
   unharmonized/assets/portal.js      shared chart code
   unharmonized/proposed_omop_injection.tsv   the accepted-format proposal, for download
 
 Review happens in GitHub issues in FINNGEN/kanta_lab_harmonisation_public: each group page has a
-button that opens a pre-filled issue titled "[unharm] <test> · <unit>". The issue status shown on the pages is read from
+button that opens a pre-filled issue titled "[unharm] <test> · <unit>", each rule page one titled
+"[unharm-check] <test> · <unit> → <fix>" (every verdict but Confirmed). The issue status shown on the pages is read from
 GitHub when the site is built (see build.py), and re-checked live on each group page.
 
 Only pandas + markdown are needed (the GitHub Pages build installs nothing else).
@@ -61,6 +66,7 @@ STYLE = """
     #groups td.wrap { white-space: normal; min-width: 180px; }
     thead tr.search-row input { width: 100%; font-size: .78rem; padding: 2px 4px; border: 1px solid #ced4da;
                                 border-radius: 3px; box-sizing: border-box; }
+    .val-noeffect { background: #b02a37; }
     .issue-open   { background: #198754; }
     .issue-closed { background: #6f42c1; }
     .issue-none   { background: #adb5bd; }
@@ -111,7 +117,7 @@ def _rng(lo, hi):
     return f"≤ {f(hi)}" if lo is None else (f"≥ {f(lo)}" if hi is None else f"{f(lo)}–{f(hi)}")
 
 
-def ranges_md(row, plot, max_rows=5):
+def ranges_md(row, plot, max_rows=5, rows_label="unharmonized rows", rows_what=None):
     """Markdown table of the concept's typical ranges (in the suggested or closest unit) and the
     group's most common ranges, for the issue body."""
     ok = lambda v: v is None or v > 0
@@ -121,14 +127,15 @@ def ranges_md(row, plot, max_rows=5):
     typical = []
     if cand:
         for c in plot.get("concepts", {}).get(cand["omop"], {}).get("clusters", []):
-            lo = c["LOWER"] / cand["cf"] if c.get("LOWER") is not None else None
-            hi = c["UPPER"] / cand["cf"] if c.get("UPPER") is not None else None
+            back = lambda v: (v - (cand.get("shift") or 0.0)) / cand["cf"]   # target unit → candidate unit
+            lo = back(c["LOWER"]) if c.get("LOWER") is not None else None
+            hi = back(c["UPPER"]) if c.get("UPPER") is not None else None
             typical.append((lo, hi, c.get("SHARE")))
     if not pairs and not typical:
         return []
     unit = cand["unit"] if cand else ""
-    out = ["", f"**Reference ranges.** Unharmonized rows: the {row['TEST_NAME']} · {row['SOURCE_UNIT']} rows that fail "
-               f"harmonization, ranges as the lab reported them."
+    what = rows_what or f"the {row['TEST_NAME']} · {row['SOURCE_UNIT']} rows that fail harmonization"
+    out = ["", f"**Reference ranges.** {rows_label[0].upper()}{rows_label[1:]}: {what}, ranges as the lab reported them."
            + (f" Harmonized: the typical range(s) of the rows already harmonized for this concept, converted to {unit}."
               " Matching ranges mean the rows are in that unit." if typical else ""),
            "", "| Rows | Reference range | Count |", "|---|---|---|"]
@@ -136,9 +143,9 @@ def ranges_md(row, plot, max_rows=5):
         out.append(f"| harmonized (typical, in {unit}) | {_rng(lo, hi)} | "
                    f"{'' if share is None else f'{100 * share:.0f}% of harmonized ranges'} |")
     for lo, hi, n in pairs[:max_rows]:
-        out.append(f"| unharmonized rows | {_rng(lo, hi)} | {n:,} rows |")
+        out.append(f"| {rows_label} | {_rng(lo, hi)} | {n:,} rows |")
     if len(pairs) > max_rows:
-        out.append(f"| unharmonized rows | {len(pairs) - max_rows} other range(s) | {sum(p[2] for p in pairs[max_rows:]):,} rows |")
+        out.append(f"| {rows_label} | {len(pairs) - max_rows} other range(s) | {sum(p[2] for p in pairs[max_rows:]):,} rows |")
     return out
 
 
@@ -148,12 +155,20 @@ def _count(v):
     return "—" if v == "" else f"{int(float(v)):,}"
 
 
+def _conv(cf, shift=None):
+    """'× 100', or '× 10.93 − 23.5' for a linear conversion."""
+    s = float(shift) if shift not in (None, "") and str(shift) != "nan" else 0.0
+    return f"× {float(cf):g}" + (f" {'−' if s < 0 else '+'} {abs(s):g}" if s else "")
+
+
 def issue_body(row, page_url, fig_url, crow, history, plot=None):
     """Self-contained review record: it stays readable after the group leaves the data."""
-    fix = (f"{row['SOURCE_UNIT']} → {row['FIX_UNIT']} (× {row['CONVERSION_FACTOR']:g} into {row['TARGET_UNIT']})"
+    fix = (f"{row['SOURCE_UNIT']} → {row['FIX_UNIT']} ({_conv(row['CONVERSION_FACTOR'], row.get('CONVERSION_SHIFT'))} "
+           f"into {row['TARGET_UNIT']})"
            if row["RESULT"] == "Suggest fix" else
            f"none: approve the Usagi row ({row['TEST_NAME']}, {row['SOURCE_UNIT']}) → {_clean(row['OMOP_ID'])} "
-           f"(× {row['CONVERSION_FACTOR']:g} into {row['TARGET_UNIT']}, already in the conversion table)"
+           f"({_conv(row['CONVERSION_FACTOR'], row.get('CONVERSION_SHIFT'))} into {row['TARGET_UNIT']}, "
+           f"already in the conversion table)"
            if row["RESULT"] == USAGI_RESULT else "—")
     lines = [
         f"**Group page:** {page_url}",
@@ -182,7 +197,8 @@ def issue_body(row, page_url, fig_url, crow, history, plot=None):
             rm = f"{100 * float(c['RANGE_MATCH']):.0f}%" if c.get("RANGE_MATCH") != "" else "—"
             v = c.get("VALUES") or "—"
             v += f" ({c['VALUES_DECIDED_BY']})" if c.get("VALUES_DECIDED_BY") else ""
-            lines.append(f"| {c['UNIT']}{' ✔' if c.get('PICKED') else ''} | × {float(c['CONVERSION_FACTOR']):g} "
+            lines.append(f"| {c['UNIT']}{' ✔' if c.get('PICKED') else ''} | "
+                         f"{_conv(c['CONVERSION_FACTOR'], c.get('CONVERSION_SHIFT'))} "
                          f"| {ks} | {v} | {rm} |")
     if history:
         lines += ["", "| Sent | Cleaned | After injection | Rows |", "|---|---|---|---|"]
@@ -205,6 +221,71 @@ def issue_note(issue, sid):
         return "suggestion changed since the issue"
     if issue["state"] == "closed":
         return "issue closed, but the rows still fail"
+    return ""
+
+
+# Rule checks (validate.py): one issue per rule, "[unharm-check] <test> · <unit> → <fix>"
+VAL_CLASS = {"Confirmed": "res-suggest", "Disagrees": "res-review", "No effect": "val-noeffect",
+             "Not confirmed": "res-review", "Cannot check": "res-none", "Not applied": "res-none"}
+VAL_REVIEW = ("Disagrees", "No effect", "Not confirmed", "Not applied")   # the verdict badge opens a review issue
+CHECK_PREFIX = "[unharm-check] "
+
+
+def _people_txt(row):
+    n, p = _clean(row.get("N_ROWS")), _clean(row.get("N_SUBJECTS"))
+    if p == disclosure.BELOW:
+        return "too few people to describe"
+    if p == "":
+        return "none in this run"
+    return (f"{int(float(n)):,} rows" if n != "" else "rows not shown") + f", {int(float(p)):,} people"
+
+
+def issue_body_check(row, page_url, fig_url, crow, plot=None):
+    """Self-contained record of one rule check: readable after the rule leaves the data."""
+    share = _clean(row.get("SHARE_HARMONIZED"))
+    eng = _clean(row.get("ENGINE_FIX"))
+    lines = [
+        *([f"**Rule check page:** {page_url}", ""] if page_url else []),
+        *([f"![evidence]({fig_url})", ""] if fig_url else []),
+        f"- **Rule:** {row['TEST_NAME']} · {row['SOURCE_UNIT']} → {row['RULE_FIX']}"
+        + (f" ({row['RULE_CONVERSION']})" if _clean(row.get("RULE_CONVERSION")) else "")
+        + f" — {_clean(row.get('RULE_STATUS')) or '—'}",
+        f"- **Verdict:** {row['VALIDATION']}" + (f" ({row['CONFIDENCE']} confidence)" if _clean(row.get("CONFIDENCE")) else ""),
+        f"- **Engine, not knowing the rule:** {_clean(row.get('ENGINE_RESULT')) or '—'}"
+        + (f"; unit {eng} ({row['ENGINE_CONVERSION']})" if eng else ""),
+        f"- **Rows changed by the rule:** {_people_txt(row)}"
+        + (f"; {100 * float(share):.0f}% harmonize after the rule" if share != "" else ""),
+        f"- **Concept:** {_clean(row.get('OMOP_ID')) or '—'} {_clean(row.get('OMOP_NAME'))}"
+        + (f" — {row['CONCEPT_CASE']}" if _clean(row.get("CONCEPT_CASE")) else "")
+        + (f"; the rule's rows: {row['CONCEPT_MATCH']}" if _clean(row.get("CONCEPT_MATCH")) else ""),
+        "",
+        f"> {row['REASON']}",
+    ]
+    lines += ranges_md(row, plot or {}, rows_label="the rule's rows",
+                       rows_what=f"the {row['TEST_NAME']} · {row['SOURCE_UNIT']} rows the rule changed to {row['RULE_FIX']}")
+    if crow:
+        lines += ["", "| Candidate unit | Conversion | KS | Values | Range match |", "|---|---|---|---|---|"]
+        for c in list(crow.values())[:6]:
+            ks = f"{float(c['KS_STAT']):.2f}" if c.get("KS_STAT") != "" else "—"
+            rm = f"{100 * float(c['RANGE_MATCH']):.0f}%" if c.get("RANGE_MATCH") != "" else "—"
+            v = (c.get("VALUES") or "—") + (f" ({c['VALUES_DECIDED_BY']})" if c.get("VALUES_DECIDED_BY") else "")
+            lines.append(f"| {c['UNIT']}{' ✔' if c.get('PICKED') else ''} | "
+                         f"{_conv(c['CONVERSION_FACTOR'], c.get('CONVERSION_SHIFT'))} → {c['TARGET_UNIT']} | {ks} | {v} | {rm} |")
+    if _clean(row.get("VALIDATION_ID")):
+        lines += ["", f"Validation id: `{row['VALIDATION_ID']}`"]
+    return "\n".join(lines)
+
+
+def check_note(issue, vid, verdict):
+    """What an existing issue means for a rule that is still in the data."""
+    if not issue:
+        return ""
+    if issue.get("sid") and vid and issue["sid"] != vid:
+        return "check changed since the issue"
+    if verdict == "Confirmed":
+        return "confirmed now: the issue can be closed" if issue["state"] == "open" else ""
+    if issue["state"] == "closed":
+        return "issue closed, but the check still fails"
     return ""
 
 
@@ -235,6 +316,8 @@ _INDEX = """<!DOCTYPE html>
       <span class="badge bg-secondary">__N_DEC__</span></button></li>
     <li class="nav-item"><button class="nav-link" data-list="nd" type="button">Not decidable
       <span class="badge bg-secondary">__N_ND__</span></button></li>
+    <li class="nav-item"><button class="nav-link" data-list="val" type="button">Validated decisions
+      <span class="badge bg-secondary">__N_VAL__</span></button></li>
     <li class="nav-item"><button class="nav-link" data-list="gone" type="button">Resolved
       <span class="badge bg-secondary">__N_GONE__</span></button></li>
   </ul>
@@ -253,9 +336,22 @@ _INDEX = """<!DOCTYPE html>
     <div class="summary-tables">__SUMMARY_ND__</div>
     __TABLE_ND__
   </section>
+  <section id="list-val" hidden>
+    <p class="text-muted mb-2" style="max-width:62rem">The secondary rules of <code>omop_injection.tsv</code> checked
+    against the data. The rows each rule changed are evaluated with the same engine as the suggestions, as if the rule
+    did not exist: with the unit they had before it, the concept from Usagi alone, and harmonized rows that no rule
+    changed. <b>Confirmed</b>: the engine suggests the rule's unit or one that converts the same way.
+    <b>Disagrees</b>: it suggests another one. <b>No effect</b>: the rule fires, but none of its rows harmonize.
+    <b>Not confirmed</b>: the evidence picks no unit. <b>Cannot check</b>: nothing to compare against, or too few
+    people. <b>Not applied</b>: no row was changed by the rule in this run. Every verdict but Confirmed can get a review
+    issue. <a href="validated.tsv">Download this list (TSV)</a>.</p>
+    <div class="summary-tables">__SUMMARY_VAL__</div>
+    __TABLE_VAL__
+  </section>
   <section id="list-gone" hidden>
-    <p class="text-muted mb-2" style="max-width:62rem">Review issues whose test and unit no longer fail harmonization
-    in this data, e.g. because the fix is now in the engine. The issue keeps the evidence it was opened with.</p>
+    <p class="text-muted mb-2" style="max-width:62rem">Review issues whose group or rule is no longer in this data:
+    a test and unit that no longer fail harmonization (e.g. the fix is now in the engine), or a rule that changed or
+    no longer changes any row. The issue keeps the evidence it was opened with.</p>
     __TABLE_GONE__
   </section>
   <p class="mt-2"><small class="text-muted">Issue status as of __ISSUES_AT__. Per-column filters take regular
@@ -266,10 +362,19 @@ _INDEX = """<!DOCTYPE html>
   <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
   <script>
   const LISTS = __LISTS__;
-  const RESULT_CLASS = __RESULT_CLASS__;
+  const RESULT_CLASS = __RESULT_CLASS__, VAL_CLASS = __VAL_CLASS__;
+  const isNum = d => d !== '' && d !== null && d !== undefined && isFinite(Number(d));
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
   const render = {
-    TEST_NAME: (d, t, r) => t === 'display' ? '<a href="groups/' + r.GROUP_ID + '.html">' + esc(d) + '</a>' : d,
+    TEST_NAME: (d, t, r) => t === 'display' && !r.NO_PAGE ? '<a href="groups/' + r.GROUP_ID + '.html">' + esc(d) + '</a>'
+                                                          : (t === 'display' ? esc(d) : d),
+    VALIDATION: (d, t, r) => {
+      if (t !== 'display') return d;
+      const badge = '<span class="badge ' + (VAL_CLASS[d] || 'res-none') + '">' + esc(d) + (r.RESULT_LINK ? ' ↗' : '') + '</span>';
+      return r.RESULT_LINK ? '<a href="' + esc(r.RESULT_LINK) + '" target="_blank" rel="noopener" title="' +
+                             (r.ISSUE_NEW ? 'Open a review issue for this rule' : 'Go to the review issue') + '">' + badge + '</a>' : badge;
+    },
+    SHARE_HARMONIZED: (d, t) => t === 'display' && d !== '' ? Math.round(100 * d) + '%' : d,
     RESULT: (d, t, r) => {
       if (t !== 'display') return d;
       const badge = '<span class="badge ' + (RESULT_CLASS[d] || 'res-none') + '">' + esc(d) + (r.RESULT_LINK ? ' ↗' : '') + '</span>';
@@ -278,7 +383,9 @@ _INDEX = """<!DOCTYPE html>
                              (r.ISSUE_NEW ? 'Open a review issue for this fix' : 'Go to the review issue') + '">' + badge + '</a>' : badge;
     },
     CONFIDENCE: (d, t) => t === 'display' && d ? '<span class="badge conf-' + d + '">' + esc(d) + '</span>' : d,
-    N_ROWS: (d, t) => t === 'display' ? Number(d).toLocaleString('en-US') : d,
+    // counts can be hidden (BELOW_THRESHOLD) or not released (empty)
+    N_ROWS: (d, t) => t === 'display' ? (isNum(d) ? Number(d).toLocaleString('en-US') : (d === 'BELOW_THRESHOLD' ? 'below threshold' : '—'))
+                                      : (t === 'sort' || t === 'type' ? (isNum(d) ? Number(d) : -1) : d),
     RANGE_COVERAGE: (d, t) => t === 'display' && d !== '' ? Math.round(100 * d) + '%' : d,
     RANGE_MATCH: (d, t) => t === 'display' && d !== '' ? Math.round(100 * d) + '%' : d,
     ISSUE: (d, t, r) => {
@@ -303,7 +410,7 @@ _INDEX = """<!DOCTYPE html>
     });
     document.querySelectorAll('[data-list]').forEach(btn => btn.addEventListener('click', () => {
       document.querySelectorAll('[data-list]').forEach(b => b.classList.toggle('active', b === btn));
-      ['dec', 'nd', 'gone'].forEach(k => { document.getElementById('list-' + k).hidden = k !== btn.dataset.list; });
+      ['dec', 'nd', 'val', 'gone'].forEach(k => { document.getElementById('list-' + k).hidden = k !== btn.dataset.list; });
       $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
     }));
   });
@@ -319,6 +426,12 @@ COLS_DEC = [
     ("VALUES", "Values"), ("RANGE_COVERAGE", "With range"), ("RANGE_MATCH", "Range match"),
     ("NEEDS", "Needs", "wrap"), ("VS_CURRENT_RULE", "vs current rule"), ("ISSUE", "Issue"),
 ]
+COLS_VAL = [
+    ("TEST_NAME", "Test"), ("SOURCE_UNIT", "Unit before"), ("RULE_FIX", "Rule fix"), ("VALIDATION", "Verdict"),
+    ("CONFIDENCE", "Confidence"), ("ENGINE_FIX", "Engine's unit"), ("RULE_CONVERSION", "Rule's conversion", "wrap"),
+    ("N_ROWS", "Rows"), ("SHARE_HARMONIZED", "Harmonized"), ("RULE_STATUS", "Rule status", "wrap"),
+    ("REASON", "Reason", "wrap"), ("ISSUE", "Issue"),
+]
 COLS_ND = [
     ("TEST_NAME", "Test"), ("SOURCE_UNIT", "Unit"), ("RESULT", "Result"), ("N_ROWS", "Rows"),
     ("REASON", "Reason", "wrap"), ("NEEDS", "Needs", "wrap"), ("CONCEPT_CASE", "Concept", "wrap"),
@@ -328,13 +441,23 @@ COLS_ND = [
 
 def _gone_html(gone):
     if not gone:
-        return "<p class='text-muted'>No review issue belongs to a group that has left the data.</p>"
+        return "<p class='text-muted'>No review issue belongs to a group or rule that has left the data.</p>"
     rows = "".join(
         f"<tr><td><a class='badge {'issue-closed' if g['state'] == 'closed' else 'issue-open'}' href='{g['url']}'>"
-        f"#{g['number']} {g['state']}</a></td><td>{html.escape(g['test'])}</td><td>{html.escape(g['unit'])}</td>"
-        f"<td>{html.escape(g['note'])}</td></tr>" for g in gone)
-    return ("<table class='table table-sm table-striped' style='max-width:60rem'><thead><tr><th>Issue</th><th>Test</th>"
-            f"<th>Unit</th><th>Status</th></tr></thead><tbody>{rows}</tbody></table>")
+        f"#{g['number']} {g['state']}</a></td><td>{html.escape(g['kind'])}</td><td>{html.escape(g['test'])}</td>"
+        f"<td>{html.escape(g['unit'])}</td><td>{html.escape(g['note'])}</td></tr>" for g in gone)
+    return ("<table class='table table-sm table-striped' style='max-width:70rem'><thead><tr><th>Issue</th><th>Kind</th>"
+            f"<th>Test</th><th>Unit</th><th>Status</th></tr></thead><tbody>{rows}</tbody></table>")
+
+
+def _val_summary_html(val):
+    if not len(val):
+        return "<p class='text-muted'>No rule checked (run suggest.py with the validation).</p>"
+    order = list(VAL_CLASS)
+    c = val["VALIDATION"].value_counts()
+    return "<table><tr><th>Verdict</th><th>Rules</th></tr>" + "".join(
+        f"<tr><td><span class='badge {VAL_CLASS[v]}'>{html.escape(v)}</span></td><td style='text-align:right'>{int(c[v])}</td></tr>"
+        for v in order if v in c) + "</table>"
 
 
 def _table_html(key, cols):
@@ -392,21 +515,9 @@ _GROUP = """<!DOCTYPE html>
   </div>
   <div class="fix-line mb-3">__FIX_LINE__</div>
 
-  <div class="row g-3 mb-3">
-    <div class="col-auto"><div class="stat-label">Rows</div><div class="stat-value">__N_ROWS__</div></div>
-    <div class="col-auto"><div class="stat-label">Concept</div><div class="stat-value">__CONCEPT__</div></div>
-    <div class="col-auto"><div class="stat-label">Concept unit</div><div class="stat-value">__TARGET_UNIT__</div></div>
-    <div class="col-auto"><div class="stat-label">Harmonized rows</div><div class="stat-value">__N_TARGET__</div></div>
-    <div class="col-auto"><div class="stat-label">Rows with a range</div><div class="stat-value">__COVERAGE__</div></div>
-    <div class="col-auto"><div class="stat-label">Current rule</div><div class="stat-value">__RULE__</div></div>
-  </div>
+  <div class="row g-3 mb-3">__STATS__</div>
 
-  <div class="mb-2">
-    <span class="case-chip"><b>Concept</b>__CONCEPT_CASE__</span>
-    <span class="case-chip"><b>Unit problem</b>__UNIT_CASE__</span>
-    <span class="case-chip"><b>Usagi pair</b>__PAIR_STATUS__</span>
-    __NEEDS_CHIP__
-  </div>
+  <div class="mb-2">__CHIPS__</div>
   <p style="max-width:60rem">__REASON__</p>
 
   <div class="section-box d-flex flex-wrap align-items-center gap-3">
@@ -418,14 +529,15 @@ _GROUP = """<!DOCTYPE html>
 
   <div class="section-box">
     <h5>Candidate units</h5>
-    <p class="text-muted mb-2">Every unit that converts into the concept's unit. Units with the same factor are one
-    candidate. Click a row to show it in the figures below.</p>
+    <p class="text-muted mb-2">Every unit that converts into the concept's unit: by a factor, or by a linear formula
+    with a shift (e.g. HbA1c % × 10.93 − 23.5 → mmol/mol). Units that convert the same way are one candidate. Click a
+    row to show it in the figures below.</p>
     <div style="overflow-x:auto"><table class="table table-sm cands mb-0" id="cands"></table></div>
   </div>
 
   <div class="section-box">
     <h5>Values <small class="text-muted" id="values-sub"></small></h5>
-    <p class="text-muted mb-2">The values of the unharmonized rows (blue) against the concept's harmonized values converted to the
+    <p class="text-muted mb-2">The values of __ROWS_LABEL__ (blue) against the concept's harmonized values converted to the
     selected unit (orange), as percentiles P5 to P95 only: the percentiles themselves, bars between neighbouring
     percentiles (each holds 5% of the rows) with a smooth line through them, and a P5 · P25 · median · P75 · P95 box
     with the mean. Green bands: the concept's typical reference ranges in the selected unit.</p>
@@ -441,7 +553,7 @@ _GROUP = """<!DOCTYPE html>
     <h5>Reference ranges</h5>
     <p class="text-muted mb-2">Each bar is a reference range, from its lower to its upper limit, on the scale the lab
     reported. Top: the concept's typical ranges, converted to each candidate unit (green: the selected one). Below: the
-    most common ranges of the unharmonized rows (this test · unit), with the number of rows. If the blue bars line up with the green one, the
+    most common ranges of __ROWS_LABEL__, with the number of rows. If the blue bars line up with the green one, the
     ranges agree with that unit. A range with only an upper limit starts at the left edge; one with only a lower limit
     runs to the right edge.</p>
     <div id="chart-ranges"></div>
@@ -454,7 +566,7 @@ _GROUP = """<!DOCTYPE html>
     </div>
     <small class="text-muted">How the unit of these rows changed on its way through the pipeline: as sent by the lab
     (<code>source::MEASUREMENT_UNIT</code>), after cleaning (<code>cleaned-pre-inj</code>), after the primary injection
-    (<code>cleaned-post-inj</code>); all of them now have <b>__UNIT__</b>. Paths followed by only a few people are not shown, so the counts can add up to less than the group's rows.</small>
+    (<code>cleaned-post-inj</code>); __CONTEXT_NOTE__ Paths followed by only a few people are not shown, so the counts can add up to less than the group's rows.</small>
   </div>
 
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
@@ -475,20 +587,26 @@ PORTAL_JS = r"""
     return typeof x === 'number' ? Number(x.toPrecision(d || 3)).toString() : String(x);
   }
   function pct(x) { return (x === null || x === undefined || x === '') ? '—' : Math.round(100 * x) + '%'; }
+  // a candidate's conversion: value in target = cf · x + shift (shift for linear formulas, e.g. HbA1c %)
+  function back(c, v) { return (v - (c.shift || 0)) / c.cf; }
+  function convTxt(c) {
+    const s = c.shift || 0;
+    return '× ' + fmt(c.cf, 4) + (s ? (s < 0 ? ' − ' : ' + ') + fmt(Math.abs(s), 4) : '');
+  }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
   // ---------- candidates table ----------
   function drawTable() {
     const t = document.getElementById('cands');
     if (!ids.length) { t.outerHTML = '<p class="text-muted mb-0">No candidate units (see the reason above).</p>'; return; }
-    let h = '<thead><tr><th>Unit</th><th>Same scale</th><th>Factor</th><th>Concept</th><th>KS</th><th>T</th>' +
+    let h = '<thead><tr><th>Unit</th><th>Same scale</th><th>Conversion</th><th>Concept</th><th>KS</th><th>T</th>' +
             '<th>MAD</th><th>Values</th><th>Range match</th><th>Only this unit</th><th></th></tr></thead><tbody>';
     ids.forEach(id => {
       const c = cands[id], e = P.cand_rows[id] || {};
       const v = e.VALUES === 'PASS' ? '<span class="text-success fw-semibold">PASS</span> (' + esc(e.VALUES_DECIDED_BY) + ')'
                                     : '<span class="text-danger fw-semibold">FAIL</span>';
       h += '<tr data-id="' + esc(id) + '"' + (id === sel ? ' class="sel"' : '') + '><td><b>' + esc(c.unit) + '</b></td><td>' +
-           esc((c.same || []).join(', ')) + '</td><td>× ' + fmt(c.cf, 4) + ' → ' + esc(c.target_unit) + '</td><td>' + esc(c.omop) +
+           esc((c.same || []).join(', ')) + '</td><td>' + convTxt(c) + ' → ' + esc(c.target_unit) + '</td><td>' + esc(c.omop) +
            '</td><td>' + fmt(e.KS_STAT) + (e.KS_PASS ? ' ✓' : '') + '</td><td>' + (e.T_PASS ? '✓' : '✗') + '</td><td>' +
            fmt(e.MAD_DIST) + ' / ' + fmt(e.MAD_THRESHOLD) + (e.MAD_PASS ? ' ✓' : '') + '</td><td>' + v + '</td><td>' +
            pct(e.RANGE_MATCH) + '</td><td>' + pct(e.RANGE_ASSIGNED) + '</td><td>' + (e.PICKED ? '<span class="badge bg-success">suggested</span>' : '') +
@@ -502,8 +620,8 @@ PORTAL_JS = r"""
   function bandsFor(id) {
     const c = cands[id]; if (!c) return [];
     const con = P.concepts[c.omop] || {};
-    return (con.clusters || []).map(k => ({ lo: k.LOWER == null ? null : k.LOWER / c.cf,
-                                            hi: k.UPPER == null ? null : k.UPPER / c.cf, share: k.SHARE }));
+    return (con.clusters || []).map(k => ({ lo: k.LOWER == null ? null : back(c, k.LOWER),
+                                            hi: k.UPPER == null ? null : back(c, k.UPPER), share: k.SHARE }));
   }
 
   // ---------- values ----------
@@ -546,9 +664,10 @@ PORTAL_JS = r"""
   function drawValues() {
     const c = cands[sel], pd = c && c.plot;
     const sub = document.getElementById('values-sub'), noteEl = document.getElementById('values-note');
-    const sides = pd ? [['unharmonized rows', pd.candidate || {}, BLUE], ['harmonized', pd.target || {}, ORANGE]]
-                     : [['unharmonized rows', P.group || {}, BLUE]];
-    sub.textContent = pd ? '— candidate ' + c.unit + ' (× ' + fmt(c.cf, 4) + ' → ' + c.target_unit + ')'
+    const rl = P.rows_label || 'unharmonized rows';
+    const sides = pd ? [[rl, pd.candidate || {}, BLUE], ['harmonized', pd.target || {}, ORANGE]]
+                     : [[rl, P.group || {}, BLUE]];
+    sub.textContent = pd ? '— candidate ' + c.unit + ' (' + convTxt(c) + ' → ' + c.target_unit + ')'
                          : '— no candidate to compare';
     noteEl.textContent = sides.map(s => sideTxt(s[0], s[1])).filter(Boolean).join(' · ');
     const shown = sides.filter(s => s[1].pct);
@@ -653,7 +772,7 @@ PORTAL_JS = r"""
     ids.forEach(id => {
       const c = cands[id], con = P.concepts[c.omop] || {}, isSel = id === sel;
       (con.clusters || []).forEach((k, j) => {
-        const lo = k.LOWER == null ? null : k.LOWER / c.cf, hi = k.UPPER == null ? null : k.UPPER / c.cf;
+        const lo = k.LOWER == null ? null : back(c, k.LOWER), hi = k.UPPER == null ? null : back(c, k.UPPER);
         const name = 'typical · ' + c.unit + (j ? ' (' + (j + 1) + ')' : '');
         const ref = lo != null ? lo : hi;
         const far = (lo != null && lo > xmax) || (hi != null && hi < xmin) || (hi != null && hi < xmax / 1000);
@@ -743,6 +862,52 @@ def _status_html(issue, note=""):
     return out + (f' <span class="badge bg-warning text-dark">{html.escape(note)}</span>' if note else "")
 
 
+def _stat(label, value):
+    return f'<div class="col-auto"><div class="stat-label">{label}</div><div class="stat-value">{value}</div></div>'
+
+
+def _chip(label, value):
+    return f'<span class="case-chip"><b>{label}</b>{html.escape(str(value))}</span>' if _clean(value) != "" else ""
+
+
+def _cand_rows(cands, gid):
+    crow = {c["CAND_ID"]: {k: _clean(v) for k, v in c.items()}
+            for c in cands[cands["GROUP_ID"] == gid].to_dict(orient="records")}
+    for c in crow.values():
+        c["PICKED"] = str(c.get("PICKED")) == "True"
+        for k in ("KS_PASS", "T_PASS", "MAD_PASS"):
+            c[k] = str(c.get(k)) == "True"
+    return crow
+
+
+def _page(mock, title, test, unit, badge_class, badge, conf, fix_line, stats, chips, reason, issue, note, url,
+          btn, issue_title, issues_at, page, rows_label, context_note):
+    """One evidence page (a suggestion group or a checked rule): the shared template, filled in.
+    url "#": nothing to review (a confirmed rule without an issue), the button is disabled."""
+    tpl = _GROUP if url != "#" else _GROUP.replace(
+        'class="btn btn-outline-primary btn-sm" href="__ISSUE_URL__"',
+        'class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true" href="__ISSUE_URL__"')
+    return (tpl
+            .replace("__CDN__", CDN).replace("__STYLE__", STYLE)
+            .replace("__NAV__", _nav("../", "")).replace("__MOCK__", mock)
+            .replace("__TITLE__", html.escape(title))
+            .replace("__TEST__", html.escape(test)).replace("__UNIT__", html.escape(unit))
+            .replace("__RESULT_CLASS__", badge_class).replace("__RESULT__", html.escape(badge))
+            .replace("__CONF_BADGE__", f'<span class="badge conf-{conf} fs-6">{conf} confidence</span>' if conf else "")
+            .replace("__FIX_LINE__", fix_line)
+            .replace("__STATS__", "".join(stats)).replace("__CHIPS__", "".join(chips))
+            .replace("__REASON__", html.escape(reason))
+            .replace("__ISSUE_STATUS__", _status_html(issue, note))
+            .replace("__ISSUE_URL__", html.escape(url))
+            .replace("__ISSUE_BTN__", btn)
+            .replace("__ISSUE_TITLE__", html.escape(issue_title))
+            .replace("__ISSUES_AT__", html.escape(issues_at))
+            .replace("__ROWS_LABEL__", html.escape(rows_label))
+            .replace("__CONTEXT_NOTE__", context_note)
+            .replace("__MARGIN__", "1.5")
+            .replace("__PAGE__", _json(page)))
+
+
 def build(out_dir: Path, data_dir: Path, repo: str, site_url: str, issues: dict, issues_at: str,
           mock_note: str = "", fig_base: str = "") -> bool:
     """Write the portal into out_dir. Returns False (and writes nothing) if there is no data."""
@@ -755,6 +920,10 @@ def build(out_dir: Path, data_dir: Path, repo: str, site_url: str, issues: dict,
     cands = pd.read_csv(data_dir / "candidates.tsv", sep="\t", keep_default_na=False, na_values=[""],
                         dtype={"OMOP_ID": str, "CAND_ID": str}) \
         if (data_dir / "candidates.tsv").exists() else pd.DataFrame(columns=["GROUP_ID", "CAND_ID"])
+    # the checked secondary rules (validate.py); every count column as text, so hidden ones stay as written
+    val_path = data_dir / "validated.tsv"
+    val = (pd.read_csv(val_path, sep="\t", dtype=str, keep_default_na=False) if val_path.exists()
+           else pd.DataFrame(columns=["GROUP_ID", "VALIDATION", "ISSUE_TITLE"]))
     with gzip.open(plot_path, "rb") as fh:
         plots = json.loads(fh.read())
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -763,12 +932,13 @@ def build(out_dir: Path, data_dir: Path, repo: str, site_url: str, issues: dict,
         stale.unlink()
     (out_dir / "assets").mkdir(exist_ok=True)
     (out_dir / "assets" / "portal.js").write_text(PORTAL_JS, encoding="utf-8")
-    for f in ("proposed_omop_injection.tsv", "groups.tsv", "decidable.tsv", "not_decidable.tsv"):
+    for f in ("proposed_omop_injection.tsv", "groups.tsv", "decidable.tsv", "not_decidable.tsv", "validated.tsv"):
         if (data_dir / f).exists():
             shutil.copy2(data_dir / f, out_dir / f)
     mock = f'<div class="mock">{html.escape(mock_note)}</div>' if mock_note else ""
     base = site_url.rstrip("/") + "/unharmonized/groups/"
 
+    # ---- suggestion groups ----
     rows_out = []
     for _, r in groups.iterrows():
         gid = r["GROUP_ID"]
@@ -776,12 +946,7 @@ def build(out_dir: Path, data_dir: Path, repo: str, site_url: str, issues: dict,
         note = issue_note(issue, r["SUGGESTION_ID"])
         page_url = base + gid + ".html"
         plot = plots.get(gid, {})
-        crow = {c["CAND_ID"]: {k: _clean(v) for k, v in c.items()}
-                for c in cands[cands["GROUP_ID"] == gid].to_dict(orient="records")}
-        for c in crow.values():
-            c["PICKED"] = str(c.get("PICKED")) == "True"
-            for k in ("KS_PASS", "T_PASS", "MAD_PASS"):
-                c[k] = str(c.get(k)) == "True"
+        crow = _cand_rows(cands, gid)
         fig_url = f"{fig_base}{r['SUGGESTION_ID']}.png" if r.get("DECIDABLE", "yes") != "no" else ""
         new_issue = issue_url(repo, r, page_url, fig_url, crow,
                               plot.get("context", {}).get("history", []), plot)
@@ -793,49 +958,33 @@ def build(out_dir: Path, data_dir: Path, repo: str, site_url: str, issues: dict,
         fix = "No fix suggested"
         if r["RESULT"] == "Suggest fix":
             fix = (f"Fix: {html.escape(r['SOURCE_UNIT'])} → {html.escape(r['FIX_UNIT'])} "
-                   f"<span class='text-muted fw-normal'>(× {r['CONVERSION_FACTOR']:g} into "
+                   f"<span class='text-muted fw-normal'>({_conv(r['CONVERSION_FACTOR'], r.get('CONVERSION_SHIFT'))} into "
                    f"{html.escape(str(r['TARGET_UNIT']))})</span>")
         elif r["RESULT"] == USAGI_RESULT:
             fix = (f"Approve in Usagi: ({html.escape(r['TEST_NAME'])}, {html.escape(r['SOURCE_UNIT'])}) → "
-                   f"{html.escape(str(_clean(r['OMOP_ID'])))} <span class='text-muted fw-normal'>(× "
-                   f"{r['CONVERSION_FACTOR']:g} into {html.escape(str(r['TARGET_UNIT']))}, already in the "
+                   f"{html.escape(str(_clean(r['OMOP_ID'])))} <span class='text-muted fw-normal'>("
+                   f"{_conv(r['CONVERSION_FACTOR'], r.get('CONVERSION_SHIFT'))} into {html.escape(str(r['TARGET_UNIT']))}, already in the "
                    f"conversion table)</span>")
         conf = _clean(r["CONFIDENCE"])
         concept = f"{_clean(r['OMOP_ID'])}" + (f" <span class='fw-normal text-muted'>{html.escape(str(r['OMOP_NAME']))}</span>"
                                                if _clean(r["OMOP_NAME"]) else "")
-        needs = _clean(r["NEEDS"])
-        page_html = (_GROUP
-                     .replace("__CDN__", CDN).replace("__STYLE__", STYLE)
-                     .replace("__NAV__", _nav("../", "")).replace("__MOCK__", mock)
-                     .replace("__TITLE__", html.escape(f"{r['TEST_NAME']} · {r['SOURCE_UNIT']}"))
-                     .replace("__TEST__", html.escape(r["TEST_NAME"])).replace("__UNIT__", html.escape(r["SOURCE_UNIT"]))
-                     .replace("__RESULT_CLASS__", RESULT_CLASS.get(r["RESULT"], "res-none"))
-                     .replace("__RESULT__", html.escape(r["RESULT"]))
-                     .replace("__CONF_BADGE__", f'<span class="badge conf-{conf} fs-6">{conf} confidence</span>' if conf else "")
-                     .replace("__FIX_LINE__", fix)
-                     .replace("__N_ROWS__", f"{int(r['N_ROWS']):,}")
-                     .replace("__CONCEPT__", concept or "—")
-                     .replace("__TARGET_UNIT__", html.escape(str(_clean(r["TARGET_UNIT"]) or "—")))
-                     .replace("__N_TARGET__", _count(r["N_TARGET"]))
-                     .replace("__COVERAGE__", f"{100 * float(r['RANGE_COVERAGE']):.0f}%"
-                              if _clean(r["RANGE_COVERAGE"]) != "" else "—")
-                     .replace("__RULE__", html.escape(str(_clean(r["CURRENT_RULE"]) or "none"))
-                              + (f" <span class='text-muted fw-normal'>({html.escape(str(r['VS_CURRENT_RULE']))})</span>"
-                                 if _clean(r["CURRENT_RULE"]) and _clean(r["VS_CURRENT_RULE"]) else ""))
-                     .replace("__CONCEPT_CASE__", html.escape(r["CONCEPT_CASE"]))
-                     .replace("__UNIT_CASE__", html.escape(r["UNIT_CASE"]))
-                     .replace("__PAIR_STATUS__", html.escape(str(r["USAGI_PAIR_STATUS"]).lower()))
-                     .replace("__NEEDS_CHIP__", f'<span class="case-chip"><b>Needs</b>{html.escape(needs)}</span>' if needs else "")
-                     .replace("__REASON__", html.escape(r["REASON"]))
-                     .replace("__ISSUE_STATUS__", _status_html(issue, note))
-                     .replace("__ISSUE_URL__", html.escape(url))
-                     .replace("__ISSUE_BTN__", "Open a new review issue" if note.startswith("suggestion changed")
-                              else (f"Go to issue #{issue['number']}" if issue else "Open review issue"))
-                     .replace("__ISSUE_TITLE__", html.escape(r["ISSUE_TITLE"]))
-                     .replace("__ISSUES_AT__", html.escape(issues_at))
-                     .replace("__MARGIN__", "1.5")
-                     .replace("__PAGE__", _json(page)))
-        (out_dir / "groups" / f"{gid}.html").write_text(page_html, encoding="utf-8")
+        stats = [_stat("Rows", f"{int(r['N_ROWS']):,}"), _stat("Concept", concept or "—"),
+                 _stat("Concept unit", html.escape(str(_clean(r["TARGET_UNIT"]) or "—"))),
+                 _stat("Harmonized rows", _count(r["N_TARGET"])),
+                 _stat("Rows with a range", f"{100 * float(r['RANGE_COVERAGE']):.0f}%"
+                       if _clean(r["RANGE_COVERAGE"]) != "" else "—"),
+                 _stat("Current rule", html.escape(str(_clean(r["CURRENT_RULE"]) or "none"))
+                       + (f" <span class='text-muted fw-normal'>({html.escape(str(r['VS_CURRENT_RULE']))})</span>"
+                          if _clean(r["CURRENT_RULE"]) and _clean(r["VS_CURRENT_RULE"]) else ""))]
+        chips = [_chip("Concept", r["CONCEPT_CASE"]), _chip("Unit problem", r["UNIT_CASE"]),
+                 _chip("Usagi pair", str(r["USAGI_PAIR_STATUS"]).lower()), _chip("Needs", _clean(r["NEEDS"]))]
+        btn = ("Open a new review issue" if note.startswith("suggestion changed")
+               else (f"Go to issue #{issue['number']}" if issue else "Open review issue"))
+        (out_dir / "groups" / f"{gid}.html").write_text(_page(
+            mock, f"{r['TEST_NAME']} · {r['SOURCE_UNIT']}", r["TEST_NAME"], r["SOURCE_UNIT"],
+            RESULT_CLASS.get(r["RESULT"], "res-none"), r["RESULT"], conf, fix, stats, chips, r["REASON"],
+            issue, note, url, btn, r["ISSUE_TITLE"], issues_at, page, "the unharmonized rows (this test · unit)",
+            f"all of them now have <b>{html.escape(r['SOURCE_UNIT'])}</b>."), encoding="utf-8")
         row = {c[0]: _clean(r.get(c[0])) for c in COLS_DEC + COLS_ND if c[0] in groups.columns}
         row["DECIDABLE"] = _clean(r.get("DECIDABLE")) or "yes"
         row.update(GROUP_ID=gid, ISSUE="", ISSUE_NUMBER=issue["number"] if issue else "",
@@ -850,30 +999,102 @@ def build(out_dir: Path, data_dir: Path, repo: str, site_url: str, issues: dict,
             row["CONVERSION_FACTOR"] = f"{float(row['CONVERSION_FACTOR']):g}"
         rows_out.append(row)
 
-    current = set(groups["ISSUE_TITLE"])
+    # ---- checked secondary rules ----
+    val_out = []
+    for _, r in val.iterrows():
+        gid, verdict, vid = r["GROUP_ID"], r["VALIDATION"], _clean(r.get("VALIDATION_ID"))
+        issue = issues.get(r["ISSUE_TITLE"])
+        note = check_note(issue, vid, verdict)
+        plot = plots.get(gid)                  # none for rules not applied, or from too few people
+        page_url = base + gid + ".html" if plot else ""
+        crow = _cand_rows(cands, gid) if plot else {}
+        fig_url = f"{fig_base}{vid}.png" if plot and vid else ""
+        new_issue = ""
+        if verdict != "Confirmed" and (not issue or note.startswith("check changed")):
+            body = issue_body_check(r, page_url, fig_url, crow, plot)
+            new_issue = f"https://github.com/{repo}/issues/new?" + urllib.parse.urlencode(
+                {"title": r["ISSUE_TITLE"], "body": body})
+        url = new_issue or (issue["url"] if issue else "")
+        if plot:
+            eng = _clean(r.get("ENGINE_FIX"))
+            fix = (f"Rule: {html.escape(r['SOURCE_UNIT'])} → {html.escape(r['RULE_FIX'])} "
+                   f"<span class='text-muted fw-normal'>({html.escape(_clean(r.get('RULE_CONVERSION')) or 'no conversion into the concept')})</span>"
+                   f"<br>Engine, not knowing the rule: "
+                   + (f"{html.escape(eng)} <span class='text-muted fw-normal'>({html.escape(r['ENGINE_CONVERSION'])})</span>"
+                      if eng else html.escape(_clean(r.get("ENGINE_RESULT")) or "—")))
+            share = _clean(r.get("SHARE_HARMONIZED"))
+            concept = f"{_clean(r['OMOP_ID'])}" + (f" <span class='fw-normal text-muted'>{html.escape(str(r['OMOP_NAME']))}</span>"
+                                                   if _clean(r["OMOP_NAME"]) else "")
+            stats = [_stat("Rows changed by the rule", _count(r["N_ROWS"])), _stat("People", _count(r["N_SUBJECTS"])),
+                     _stat("Harmonized after the rule", f"{100 * float(share):.0f}%" if share != "" else "—"),
+                     _stat("Concept", concept or "—"),
+                     _stat("Concept unit", html.escape(_clean(r.get("TARGET_UNIT")) or "—")),
+                     _stat("Harmonized rows (no rule)", _count(r.get("N_TARGET"))),
+                     _stat("Rows with a range", f"{100 * float(r['RANGE_COVERAGE']):.0f}%"
+                           if _clean(r.get("RANGE_COVERAGE")) != "" else "—"),
+                     _stat("Rule status", html.escape(_clean(r.get("RULE_STATUS")) or "—"))]
+            chips = [_chip("Concept", r.get("CONCEPT_CASE")), _chip("Concept of the rule's rows", r.get("CONCEPT_MATCH")),
+                     _chip("Engine result", r.get("ENGINE_RESULT"))]
+            page = dict(candidates=plot.get("candidates", {}), concepts=plot.get("concepts", {}),
+                        ranges=plot.get("ranges", []), group=plot.get("group"), pcts=list(disclosure.PCTS),
+                        context=plot.get("context", {}), picked=plot.get("picked"), cand_rows=crow,
+                        margin=1.5, repo=repo, issue_title=r["ISSUE_TITLE"], rows_label="the rule's rows")
+            btn = ("Open a new review issue" if note.startswith("check changed")
+                   else (f"Go to issue #{issue['number']}" if issue
+                         else ("Open review issue" if verdict != "Confirmed" else "Confirmed: nothing to review")))
+            (out_dir / "groups" / f"{gid}.html").write_text(_page(
+                mock, f"Rule {r['TEST_NAME']} · {r['SOURCE_UNIT']} → {r['RULE_FIX']}", r["TEST_NAME"],
+                f"{r['SOURCE_UNIT']} → {r['RULE_FIX']}", VAL_CLASS.get(verdict, "res-none"), verdict,
+                _clean(r.get("CONFIDENCE")), fix, stats, chips, r["REASON"], issue, note, url or "#", btn,
+                r["ISSUE_TITLE"], issues_at, page, "the rule's rows (this test · unit before the rule)",
+                f"then the rule changed <b>{html.escape(r['SOURCE_UNIT'])}</b> to <b>{html.escape(r['RULE_FIX'])}</b>."),
+                encoding="utf-8")
+        row = {c[0]: _clean(r.get(c[0])) for c in COLS_VAL if c[0] in val.columns}
+        row.update(GROUP_ID=gid, NO_PAGE=not plot, ISSUE="", ISSUE_NUMBER=issue["number"] if issue else "",
+                   ISSUE_STATE=issue["state"] if issue else "", ISSUE_URL=issue["url"] if issue else "",
+                   ISSUE_NOTE=note, ISSUE_NEW=new_issue if verdict in VAL_REVIEW else "")
+        # the verdict badge opens the review issue (a new one, or the existing one) for the verdicts to act on
+        row["RESULT_LINK"] = (row["ISSUE_NEW"] or (issue["url"] if issue else "")) if verdict in VAL_REVIEW else ""
+        val_out.append(row)
+
+    # ---- issues whose group or rule has left the data ----
+    current = set(groups["ISSUE_TITLE"]) | set(val["ISSUE_TITLE"])
     gone = []
     for title, it in sorted(issues.items(), key=lambda kv: -kv[1]["number"]):
-        if title in current or not title.startswith("[unharm] "):
+        if title in current:
             continue
-        test, _, unit = title[len("[unharm] "):].partition(" · ")
-        gone.append({"number": it["number"], "state": it["state"], "url": it["url"], "test": test, "unit": unit,
-                     "note": "resolved: no longer failing" if it["state"] == "closed"
-                             else "no longer failing, but the issue is still open"})
+        if title.startswith(CHECK_PREFIX):
+            test, _, unit = title[len(CHECK_PREFIX):].partition(" · ")
+            gone.append({"number": it["number"], "state": it["state"], "url": it["url"], "kind": "Rule check",
+                         "test": test, "unit": unit,
+                         "note": "resolved: the rule changed or no longer changes any row" if it["state"] == "closed"
+                                 else "the rule no longer changes any row, but the issue is still open"})
+        elif title.startswith("[unharm] "):
+            test, _, unit = title[len("[unharm] "):].partition(" · ")
+            gone.append({"number": it["number"], "state": it["state"], "url": it["url"], "kind": "Suggestion",
+                         "test": test, "unit": unit,
+                         "note": "resolved: no longer failing" if it["state"] == "closed"
+                                 else "no longer failing, but the issue is still open"})
     dec = [r for r in rows_out if r["DECIDABLE"] != "no"]
     nd = [r for r in rows_out if r["DECIDABLE"] == "no"]
     gdec = groups[groups.get("DECIDABLE", pd.Series("yes", index=groups.index)).fillna("yes") != "no"]
     gnd = groups.drop(gdec.index)
     lists = {"dec": {"rows": dec, "cols": [list(c) for c in COLS_DEC]},
-             "nd": {"rows": nd, "cols": [list(c) for c in COLS_ND]}}
+             "nd": {"rows": nd, "cols": [list(c) for c in COLS_ND]},
+             "val": {"rows": val_out, "cols": [list(c) for c in COLS_VAL]}}
     idx = (_INDEX.replace("__CDN__", CDN).replace("__STYLE__", STYLE)
            .replace("__NAV__", _nav("", "Unharmonized")).replace("__MOCK__", mock)
-           .replace("__N_DEC__", str(len(dec))).replace("__N_ND__", str(len(nd)))
+           .replace("__N_DEC__", str(len(dec))).replace("__N_ND__", str(len(nd))).replace("__N_VAL__", str(len(val_out)))
            .replace("__N_GONE__", str(len(gone))).replace("__TABLE_GONE__", _gone_html(gone))
            .replace("__SUMMARY_DEC__", _summary_html(gdec)).replace("__SUMMARY_ND__", _summary_html(gnd, False))
+           .replace("__SUMMARY_VAL__", _val_summary_html(val))
            .replace("__TABLE_DEC__", _table_html("dec", COLS_DEC)).replace("__TABLE_ND__", _table_html("nd", COLS_ND))
+           .replace("__TABLE_VAL__", _table_html("val", COLS_VAL))
            .replace("__ISSUES_AT__", html.escape(issues_at))
            .replace("__LISTS__", _json(lists))
-           .replace("__RESULT_CLASS__", _json(RESULT_CLASS)))
+           .replace("__RESULT_CLASS__", _json(RESULT_CLASS)).replace("__VAL_CLASS__", _json(VAL_CLASS)))
     (out_dir / "index.html").write_text(idx, encoding="utf-8")
-    print(f"Wrote {out_dir}/index.html and {len(groups)} group pages")
+    n_pages = len(groups) + int(sum(not r["NO_PAGE"] for r in val_out))
+    print(f"Wrote {out_dir}/index.html and {n_pages} pages ({len(groups)} groups, "
+          f"{n_pages - len(groups)} checked rules)")
     return True

@@ -27,7 +27,7 @@ Concept (CONCEPT_CASE)
 
 Unit (UNIT_CASE)
   Unit missing / Unit is a synonym or incomplete / Unit does not match the values /
-  Conversion missing from the table / Only a formula conversion exists /
+  Conversion missing from the table / Only a formula conversion exists (not linear) /
   Too few harmonized rows to compare / Unit not convertible
 
 Result (RESULT)
@@ -69,8 +69,14 @@ PEOPLE, counted from a person key (cityHash64 of FINNGENID) kept with every cach
 Reference texts are never read, only the extracted lower / upper limits. release_check.py checks
 the release files; --release copies nothing when it finds a problem.
 
-Speed: the engine parquet is scanned once for every row that failed harmonization, and three
-more times for the harmonized side of the concepts involved; both are cached under --dump-dir
+Secondary rules: every rule of omop_injection.tsv applied in the run is checked by validate.py with
+this same engine, as if the rule did not exist (validated.tsv; --no-validation skips it). The
+harmonized side never includes rows a rule changed (cleaned-post-inj::MEASUREMENT_UNIT !=
+MEASUREMENT_UNIT), so no rule is checked against its own output.
+
+Speed: the engine parquet is scanned once for every row that failed harmonization, once for the
+rows a secondary rule changed, and three more times for the harmonized side of the concepts
+involved; all are cached under --dump-dir
 (one folder per input file) and everything after that runs locally. The cache is rebuilt when
 the input file changes, or with --force.
 
@@ -110,11 +116,13 @@ REPO = Path(__file__).resolve().parents[2]
 RELEASE_DIR = REPO / "data" / "unharmonized"
 DEFAULT_INJECTION_TABLE = REPO.parent / "kanta_lab_preprocessing" / "src" / "kanta" / "engine" / "data" / "omop_injection.tsv"
 
-DUMP_FORMAT = 3      # bump when the dump's columns change: old caches are rebuilt (3: PERSON)
+DUMP_FORMAT = 4      # bump when the dumps' columns change: old dumps are rebuilt (3: PERSON,
+                     # 4: ruled.parquet, the rows a secondary rule changed)
 FIGURE_FORMAT = 2    # bump when the issue figures change (2: percentiles only): figures of an older
                      # format, in --out-dir/figures or the release, are redrawn and replaced
-CONCEPT_FORMAT = 2   # bump when the per-concept cache changes (2: people per unit / range pair,
-                     # a person key per sampled value): the concept cache is rebuilt
+CONCEPT_FORMAT = 4   # bump when the per-concept cache changes (2: people per unit / range pair,
+                     # a person key per sampled value; 3: rows changed by a secondary rule left out;
+                     # 4: ranges of rows converted by a linear formula kept): the concept cache is rebuilt
 
 COL = dict(
     test="TEST_NAME_ABBREVIATION", unit="MEASUREMENT_UNIT", src_unit="source::MEASUREMENT_UNIT",
@@ -165,10 +173,12 @@ NOT_DECIDABLE = ("nd_missing", "nd_unchecked", "nd_lowtarget", "nd_noconv")
 
 GROUP_COLS = ["GROUP_ID", "TEST_NAME", "SOURCE_UNIT", "N_ROWS", "N_SUBJECTS", "CONCEPT_CASE", "USAGI_PAIR_STATUS",
               "OMOP_ID", "OMOP_NAME", "OMOP_QUANTITY", "TARGET_UNIT", "N_TARGET", "N_TARGET_SUBJECTS", "UNIT_CASE",
-              "RESULT", "DECIDABLE", "CONFIDENCE", "FIX_UNIT", "CONVERSION_FACTOR", "VALUES", "VALUES_DECIDED_BY",
+              "RESULT", "DECIDABLE", "CONFIDENCE", "FIX_UNIT", "CONVERSION_FACTOR", "CONVERSION_SHIFT", "VALUES",
+              "VALUES_DECIDED_BY",
               "KS_STAT", "RANGE_COVERAGE", "N_RANGED", "RANGE_MATCH", "NEEDS", "CURRENT_RULE",
               "VS_CURRENT_RULE", "REASON", "SUGGESTION_ID", "ISSUE_TITLE"]
 CAND_COLS = ["GROUP_ID", "CAND_ID", "OMOP_ID", "TARGET_UNIT", "UNIT", "SAME_SCALE_UNITS", "CONVERSION_FACTOR",
+             "CONVERSION_SHIFT",
              "KS_STAT", "KS_PASS", "T_PASS", "MAD_DIST", "MAD_THRESHOLD", "MAD_PASS", "VALUES",
              "VALUES_DECIDED_BY", "RANGE_MATCH", "RANGE_ASSIGNED", "PICKED"]
 
@@ -191,6 +201,38 @@ def num(col):
 
 def fmt_cf(cf):
     return f"{cf:.6g}"
+
+
+_NUM = r"(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?"
+_LINEAR = re.compile(rf"\s*([+-]?{_NUM})\s*(?:\*\s*X\s*(?:([+-])\s*({_NUM}))?)?\s*")
+
+
+def parse_conversion(cf):
+    """(a, b) for a conversion-table factor: a plain number 'a', or a linear formula 'a*X+b' /
+    'a*X-b' (value in the target unit = a·x + b). None when it is neither."""
+    m = _LINEAR.fullmatch(str(cf))
+    if not m:
+        return None
+    a = float(m.group(1))
+    b = float(m.group(3)) * (-1 if m.group(2) == "-" else 1) if m.group(3) else 0.0
+    return a, b
+
+
+def conv_txt(cf, shift=0.0):
+    """'× 100', or '× 10.93 − 23.5' for a linear conversion with a shift."""
+    if not shift:
+        return f"× {fmt_cf(cf)}"
+    return f"× {fmt_cf(cf)} {'−' if shift < 0 else '+'} {fmt_cf(abs(shift))}"
+
+
+def to_target(c, x):
+    """A candidate's conversion applied to values in its unit (c: a candidate with cf and shift)."""
+    return x * c["cf"] + c.get("shift", 0.0)
+
+
+def from_target(c, t):
+    """Values in the target unit brought back to the candidate's unit."""
+    return (t - c.get("shift", 0.0)) / c["cf"]
 
 
 def _read(out, names):
@@ -298,9 +340,14 @@ class Data:
 
       failed.parquet        every row with a numeric value and no harmonized value: test, unit,
                             raw OMOP id, raw unit spelling, value, limits, lab, year (1 full scan)
+      ruled.parquet         every row with a numeric value whose unit a secondary rule
+                            (omop_injection.tsv) changed: cleaned-post-inj::MEASUREMENT_UNIT !=
+                            MEASUREMENT_UNIT; for validate.py (1 full scan)
       concepts/<id>.units.tsv / .ranges.tsv / .values.npy
                             per concept: harmonized rows per unit, distinct (lower, upper, factor)
-                            pairs, and a value sample in the main unit. Fetched for all concepts
+                            pairs, and a value sample in the main unit, all from the rows that
+                            harmonized without a secondary rule (a rule's rows never serve as the
+                            reference that rules are checked against). Fetched for all concepts
                             not cached yet in one batch (3 full scans), so a new --min-count or new
                             thresholds only scan for concepts never seen before.
       manifest.json         the input's path, size and modification time
@@ -323,9 +370,10 @@ class Data:
             print(f"Rebuilding the cache {self.cache} ({'--force' if args.force else 'input file changed'})")
             shutil.rmtree(self.cache)
         elif same_input and old.get("dump_format") != DUMP_FORMAT:
-            # only the dump of failed rows changed shape; the per-concept cache is still valid
-            print("The dump of failed rows has a new format: re-dumping it (concept cache kept)")
-            (self.cache / "failed.parquet").unlink(missing_ok=True)
+            # only the dumps changed shape; the per-concept cache is still valid
+            print("The row dumps have a new format: re-dumping them (concept cache kept)")
+            for name in ("failed.parquet", "ruled.parquet"):
+                (self.cache / name).unlink(missing_ok=True)
         if same_input and old.get("concept_format") != CONCEPT_FORMAT and (self.cache / "concepts").exists():
             print("The concept cache has a new format: rebuilding it (dump of failed rows kept)")
             shutil.rmtree(self.cache / "concepts")
@@ -341,8 +389,13 @@ class Data:
         for k in ("src_unit", "pre_unit", "post_unit", "h_cf", "lower", "upper", "lab", "date"):
             if COL[k] not in self.has:
                 print(f"  (no column {COL[k]!r}: {k} left out)")
+        # harmonized side: only rows no secondary rule changed (the complement of ruled.parquet)
+        self._norule = (f" AND NOT ifNull(toString(`{COL['post_unit']}`) != toString(`{COL['unit']}`), 0)"
+                        if COL["post_unit"] in self.has else "")
         self.failed = self._load_failed()
         self._idx = self.failed.groupby(["TEST", "UNIT"], observed=True, sort=False).indices
+        self.ruled = self._load_ruled()
+        self._ridx = self.ruled.groupby(["TEST", "POST_UNIT", "UNIT"], observed=True, sort=False).indices
         self._rng = np.random.default_rng(0)
 
     # -- helpers --
@@ -415,6 +468,65 @@ class Data:
         df = self._rows(test, unit)[["SRC_UNIT", "PRE_UNIT", "POST_UNIT", "PERSON"]]
         return df.astype({"SRC_UNIT": str, "PRE_UNIT": str, "POST_UNIT": str}).reset_index(drop=True)
 
+    # -- rows a secondary rule changed (validate.py) --
+    RULED_COLS = ["TEST", "POST_UNIT", "UNIT", "H_OMOP", "H_OK", "SRC_UNIT", "PRE_UNIT", "VALUE", "LOWER",
+                  "UPPER", "PERSON"]
+
+    def _load_ruled(self):
+        path = self.cache / "ruled.parquet"
+        if COL["post_unit"] not in self.has:
+            print(f"  (no column {COL['post_unit']!r}: the secondary rules cannot be validated)")
+            return pd.DataFrame({c: pd.Series(dtype="category" if c not in ("VALUE", "LOWER", "UPPER", "H_OK", "PERSON")
+                                              else float) for c in self.RULED_COLS})
+        if not path.exists():
+            with ticking("Dumping the rows a secondary rule changed (full scan 2)"):
+                self._outfile(f"""
+                SELECT toString(`{COL['test']}`) AS TEST, toString(`{COL['post_unit']}`) AS POST_UNIT,
+                       toString(`{COL['unit']}`) AS UNIT, toString(`{COL['h_omop']}`) AS H_OMOP,
+                       toUInt8({num(COL['h_value'])} IS NOT NULL) AS H_OK,
+                       {self._col('src_unit', f"toString(`{COL['src_unit']}`)", "'-'")} AS SRC_UNIT,
+                       {self._col('pre_unit', f"toString(`{COL['pre_unit']}`)", "'-'")} AS PRE_UNIT,
+                       {num(COL['value'])} AS VALUE,
+                       {self._col('lower', num(COL['lower']))} AS LOWER,
+                       {self._col('upper', num(COL['upper']))} AS UPPER,
+                       {PERSON} AS PERSON
+                FROM file('{self.p}')
+                WHERE VALUE IS NOT NULL AND toString(`{COL['post_unit']}`) != toString(`{COL['unit']}`)""", path)
+        import pyarrow.parquet as pq
+        df = pq.read_table(path).to_pandas(strings_to_categorical=True)
+        for c in ("TEST", "POST_UNIT", "UNIT", "H_OMOP", "SRC_UNIT", "PRE_UNIT"):
+            df[c] = df[c].cat.add_categories([x for x in ("NA",) if x not in df[c].cat.categories]).fillna("NA")
+        print(f"Rows a secondary rule changed: {len(df):,}")
+        return df
+
+    def ruled_groups(self):
+        """One row per applied rule: TEST, POST_UNIT (the unit before the rule), UNIT (the rule's fix),
+        rows (N) and people (P)."""
+        g = (self.ruled.groupby(["TEST", "POST_UNIT", "UNIT"], observed=True)["PERSON"]
+             .agg(N="size", P="nunique").reset_index())
+        for c in ("TEST", "POST_UNIT", "UNIT"):
+            g[c] = g[c].astype(str).replace("", "NA")
+        return g
+
+    def ruled_all(self, test, post, fix):
+        """Every row one rule changed (not sampled)."""
+        idx = self._ridx.get((test, post, fix))
+        return self.ruled.iloc[idx] if idx is not None else self.ruled.iloc[[]]
+
+    def ruled_rows(self, test, post, fix):
+        """VALUE, LOWER, UPPER and PERSON of the rows one rule changed (sampled), as group_rows()."""
+        df = self.ruled_all(test, post, fix)
+        if len(df) > self.args.max_group_rows:
+            df = df.sample(self.args.max_group_rows, random_state=0)
+        out = df[["VALUE", "LOWER", "UPPER"]].reset_index(drop=True).astype(float)
+        out["PERSON"] = df["PERSON"].to_numpy(dtype=np.uint64)
+        return out[np.isfinite(out["VALUE"])].reset_index(drop=True)
+
+    def ruled_context(self, test, post, fix):
+        """Unit path of the rows one rule changed, up to the unit before the rule (as group_context())."""
+        df = self.ruled_all(test, post, fix)[["SRC_UNIT", "PRE_UNIT", "POST_UNIT", "PERSON"]]
+        return df.astype({"SRC_UNIT": str, "PRE_UNIT": str, "POST_UNIT": str}).reset_index(drop=True)
+
     # -- harmonized side, per concept --
     def _cpath(self, omop, kind):
         return self.cache / "concepts" / f"{slug(omop)}.{kind}"
@@ -430,6 +542,7 @@ class Data:
             units = _read(clickhouse(f"""
             SELECT toString(`{COL['h_omop']}`), toString(`{COL['h_unit']}`), count(), uniqExact({PERSON})
             FROM file('{self.p}') WHERE toString(`{COL['h_omop']}`) IN ({ids}) AND {num(COL['h_value'])} IS NOT NULL
+              {self._norule}
             GROUP BY 1, 2 FORMAT TSV"""), ["OMOP", "UNIT", "N", "P"])
         units["N"] = units["N"].astype(int)
         units["P"] = units["P"].astype(int)
@@ -474,11 +587,13 @@ class Data:
             with ticking(f"Reference ranges of {len(todo)} concept(s) (full scan)"):
                 ranges = _f(_read(clickhouse(f"""
                 SELECT toString(`{COL['h_omop']}`) AS o, {num(COL['lower'])} AS lo, {num(COL['upper'])} AS hi,
-                       {num(COL['h_cf'])} AS cf, count(), uniqExact({PERSON})
+                       toString(`{COL['h_cf']}`) AS cf, count(), uniqExact({PERSON})
                 FROM file('{self.p}')
-                WHERE o IN ({ids}) AND {hv} IS NOT NULL AND cf IS NOT NULL AND (lo IS NOT NULL OR hi IS NOT NULL)
+                WHERE o IN ({ids}) AND {hv} IS NOT NULL AND cf IS NOT NULL AND cf NOT IN ('', 'NA')
+                  AND (lo IS NOT NULL OR hi IS NOT NULL)
+                  {self._norule}
                 GROUP BY o, lo, hi, cf FORMAT TSV"""), ["OMOP", "LO", "HI", "CF", "N", "P"]),
-                    ["LO", "HI", "CF", "N", "P"])
+                    ["LO", "HI", "N", "P"])
         else:
             ranges = pd.DataFrame(columns=["OMOP", "LO", "HI", "CF", "N", "P"])
         main = [(o, self.target_count(o)[0]) for o in todo]
@@ -494,7 +609,7 @@ class Data:
                            groupArraySample({self.args.max_target_rows}, 1)(({hv}, {PERSON})) AS s
                     FROM file('{self.p}')
                     WHERE (toString(`{COL['h_omop']}`), toString(`{COL['h_unit']}`)) IN ({pairs})
-                      AND {hv} IS NOT NULL
+                      AND {hv} IS NOT NULL {self._norule}
                     GROUP BY o) ARRAY JOIN s AS t""", vpath)
             vals = pd.read_parquet(vpath)
             vpath.unlink()
@@ -520,8 +635,13 @@ class Data:
         path = self._cpath(omop, "ranges.tsv")
         if not path.exists():
             return pd.DataFrame(columns=["LOWER", "UPPER", "N", "P"])
-        df = pd.read_csv(path, sep="\t")
-        return pd.DataFrame({"LOWER": df["LO"] * df["CF"], "UPPER": df["HI"] * df["CF"], "N": df["N"], "P": df["P"]})
+        df = pd.read_csv(path, sep="\t", dtype={"CF": str}, keep_default_na=False, na_values=[""])
+        # each pair converted as its rows were: a plain factor or a linear formula (a·x + b)
+        ab = {cf: parse_conversion(cf) for cf in df["CF"].dropna().unique()}
+        a = df["CF"].map(lambda cf: (ab.get(cf) or (np.nan, np.nan))[0]).astype(float)
+        b = df["CF"].map(lambda cf: (ab.get(cf) or (np.nan, np.nan))[1]).astype(float)
+        out = pd.DataFrame({"LOWER": df["LO"] * a + b, "UPPER": df["HI"] * a + b, "N": df["N"], "P": df["P"]})
+        return out[np.isfinite(a)].reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------
@@ -555,42 +675,57 @@ class Usagi:
     def candidates(self, omop, target_unit, test):
         """
         Every unit of the concept's quantity that converts into target_unit, directly or through
-        other units (vol% → % → ratio), with its overall factor (value in target = value × cf).
-        The target unit itself is always a candidate (× 1). Units with the same factor are one
-        candidate, named after the unit Usagi approves for this test, else the target unit, else
-        the first. Formula conversions are listed apart (not tested).
+        other units (vol% → % → ratio), with its overall conversion: value in target = cf · x + shift.
+        Conversions are plain factors or linear formulas 'a*X+b' (shift b, e.g. HbA1c % → mmol/mol
+        10.93*X-23.50); a row restricted to some OMOP concepts (ONLY_TO_OMOP_CONCEPTS) is used for
+        those concepts only. A unit converts as the engine converts it: by its own row into the
+        target unit (also a row target → target, e.g. PEth mg/l → mg/l × 0.703), else through the
+        chain. The target unit itself is always a candidate (× 1 unless it has such a row). Units
+        with the same conversion are one candidate, named after the unit Usagi approves for this
+        test, else the target unit, else the first. Other formulas, and factors ≤ 0, are listed
+        apart (not tested).
         """
         q = self.quantity.get(omop)
-        c = self.conv[(self.conv["QUANTITY"] == q)
-                      & ((self.conv["ONLY"] == "") | (self.conv["ONLY"] == str(omop)))]
-        edges, formula = {}, set()
+        only = self.conv["ONLY"].map(lambda v: v == "" or str(omop) in re.split(r"[|,;\s]+", str(v)))
+        c = self.conv[(self.conv["QUANTITY"] == q) & only]
+        edges, formula, own = {}, set(), None
         for src, to, cf in zip(c["SRC"], c["TO"], c["CF"]):
-            if src in ("", "NA") or to in ("", "NA"):
+            # "NA" (no unit) is a unit of its own here: the table converts e.g. estimate ↔ NA × 1
+            # (Presence or Threshold), so the two are one candidate; only blank cells are skipped
+            if src == "" or to == "":
                 continue
-            try:
-                f = float(cf)
-            except ValueError:
+            ab = parse_conversion(cf)
+            if ab is None or ab[0] <= 0:
                 formula.add(src)
                 continue
-            if f > 0:
-                edges.setdefault(to, []).append((src, f))
-        factor = {target_unit: 1.0}          # unit -> factor into target_unit
+            if src == to:
+                if to == target_unit:
+                    own = ab              # the target unit's own conversion (PEth mg/l × 0.703)
+                continue
+            edges.setdefault(to, []).append((src, ab))
+        conv = {target_unit: own or (1.0, 0.0)}    # unit -> (cf, shift) into target_unit
         queue = [target_unit]
         while queue:                          # walk conversions backwards from the target
             to = queue.pop(0)
-            for src, f in edges.get(to, []):
-                if src not in factor:
-                    factor[src] = f * factor[to]
-                    queue.append(src)
-        numeric = {}
-        for u, f in factor.items():
-            numeric.setdefault(round(np.log10(f), 6), (f, []))[1].append(u)
+            for src, (a, b) in edges.get(to, []):
+                if src in conv:
+                    continue
+                if to == target_unit:
+                    conv[src] = (a, b)        # the unit's own row into the target, as the engine applies it
+                else:                         # src → to → … → target
+                    A, B = conv[to]
+                    conv[src] = (A * a, A * b + B)
+                queue.append(src)
+        merged = {}
+        for u, (a, b) in conv.items():
+            merged.setdefault((round(np.log10(a), 6), round(b, 6)), (a, b, []))[2].append(u)
         cands = []
-        for f, units in sorted(numeric.values(), key=lambda x: x[0]):
+        for a, b, units in sorted(merged.values(), key=lambda x: (x[0], x[1])):
             rep = next((u for u in units if (test, u) in self.approved_pairs), None) \
                 or (target_unit if target_unit in units else sorted(units)[0])
-            cands.append(dict(unit=rep, cf=float(f"{f:.10g}"), same=sorted(u for u in units if u != rep)))
-        return cands, sorted(formula - set(factor)), q
+            cands.append(dict(unit=rep, cf=float(f"{a:.10g}"), shift=float(f"{b:.10g}"),
+                              same=sorted(u for u in units if u != rep)))
+        return cands, sorted(formula - set(conv)), q
 
 
 def load_injection_table(path):
@@ -689,6 +824,10 @@ def resolve_concepts(test, unit, omop_raw, usagi):
     status, pair_omop = usagi.pair.get((test, unit), ("MISSING", "NA"))
     if omop_raw not in ("0", "NA", ""):
         return "mapped", [omop_raw], status
+    # the (test, unit) pair is approved with a concept, but the rows carry none: rows evaluated
+    # without the concept they got (validate.py), or a run older than the Usagi table
+    if status == "APPROVED" and pair_omop not in ("0", "NA", ""):
+        return "mapped", [pair_omop], status
     if status == "UNCHECKED" and pair_omop not in ("0", "NA", ""):
         return "unchecked", [pair_omop], status
     approved = usagi.approved.get(test, [])
@@ -716,14 +855,29 @@ def pre_classify(test, concepts, concept_case, usagi, data, args):
     return None
 
 
-def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda step: None):
+def same_scale(cands, unit, pick):
+    """Is `unit` one of the units of the candidate `pick` (same concept, same factor)?"""
+    return any(c is pick and unit in [c["unit"]] + c["same"] for c in cands)
+
+
+def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda step: None, rows=None, ctx=None):
+    """Decide one group. Its rows and unit history come from the failed rows by default; validate.py
+    passes the rows of one secondary rule instead (rows, ctx: as data.group_rows / group_context)."""
     test, unit, n_rows, omop_raw = g["TEST"], g["UNIT"], int(g["N"]), g["OMOP_RAW"]
     n_people, mc = int(g["P"]), args.min_cell
     # file-safe id; the hash keeps tests apart that differ only in punctuation (". " vs ",")
     gid = f"{slug(test)}__{slug(unit)}-{hashlib.sha1(f'{test}|{unit}'.encode()).hexdigest()[:6]}"
     concept_case, concepts, pair_status = resolve_concepts(test, unit, omop_raw, usagi)
     status("loading the group's rows")
-    rows = data.group_rows(test, unit)
+    if rows is None:
+        rows = data.group_rows(test, unit)
+    if ctx is None:
+        ctx = data.group_context(test, unit)
+    # secondary rules and this group: a rule for (test, unit) is in the table but did not change
+    # these rows (the table is newer than the engine run), or the rows got this unit from a rule
+    # (test, unit before the rule) → unit and still fail
+    pending = rules.get((test, unit))
+    applied = sorted({p for p in ctx["POST_UNIT"].unique() if p != unit and rules.get((test, p)) == unit})
     vals = rows["VALUE"].to_numpy(dtype=float)
     gpers = rows["PERSON"].to_numpy(dtype=np.uint64)
     lo_r, hi_r = rows["LOWER"].to_numpy(dtype=float), rows["UPPER"].to_numpy(dtype=float)
@@ -737,8 +891,9 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
     info = dict(GROUP_ID=gid, TEST_NAME=test, SOURCE_UNIT=unit_label(unit), N_ROWS=n_rows, N_SUBJECTS=n_people,
                 CONCEPT_CASE=CONCEPT_CASES[concept_case], USAGI_PAIR_STATUS=pair_status,
                 RANGE_COVERAGE=round(coverage, 4) if cov_ok else "", N_RANGED=n_ranged,
-                CURRENT_RULE=(f"{unit_label(unit)} → {unit_label(rules[(test, unit)])}"
-                              if (test, unit) in rules else ""),
+                CURRENT_RULE=(f"{unit_label(unit)} → {unit_label(pending)} (in the table, not in this run)"
+                              if pending else "; ".join(f"{unit_label(p)} → {unit_label(unit)}" for p in applied)
+                              + (" (applied, rows still fail)" if applied else "")),
                 ISSUE_TITLE=f"[unharm] {test} · {unit_label(unit)}")
     # the group's own values: percentiles only (as for any published distribution), full counts
     status("summarising the group's values")
@@ -784,9 +939,9 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
     # --- evidence per candidate ---
     cand_rows = []
     for k, c in enumerate(cands, 1):
-        status(f"candidate {k}/{len(cands)}: {c['unit']} × {fmt_cf(c['cf'])} (value tests, ranges)")
-        cid = f"{c['omop']}|{c['unit']}|{fmt_cf(c['cf'])}"
-        t_in_cand = c["t_vals"] / c["cf"]
+        status(f"candidate {k}/{len(cands)}: {c['unit']} {conv_txt(c['cf'], c['shift'])} (value tests, ranges)")
+        cid = f"{c['omop']}|{c['unit']}|{fmt_cf(c['cf'])}" + (f"{c['shift']:+.6g}" if c["shift"] else "")
+        t_in_cand = from_target(c, c["t_vals"])
         if len(vals) >= 2 and len(t_in_cand) >= 2:
             res, v = value_tests(vals, t_in_cand)
             # publishable: percentiles and test results only (no curves through the raw values)
@@ -797,12 +952,12 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
             v = dict(KS_STAT=np.nan, KS_PASS=False, T_PASS=False, MAD_DIST=np.nan, MAD_THRESHOLD=np.nan,
                      MAD_PASS=False, VALUES="FAIL", VALUES_DECIDED_BY="", _rank=3)
             pdata = None
-        match = rr.match_clusters(lo_r * c["cf"], hi_r * c["cf"], c["clusters"], args.margin) & ranged \
+        match = rr.match_clusters(to_target(c, lo_r), to_target(c, hi_r), c["clusters"], args.margin) & ranged \
             if len(c["clusters"]) else np.zeros(len(rows), dtype=bool)
         c.update(cid=cid, v=v, match=match,
                  range_match=float(match.sum() / ranged.sum()) if ranged.any() else np.nan,
                  rm_ok=bool(ranged.any()) and share_ok(match, ranged, gpers, mc))
-        plot["candidates"][cid] = {"unit": c["unit"], "cf": c["cf"], "omop": c["omop"],
+        plot["candidates"][cid] = {"unit": c["unit"], "cf": c["cf"], "shift": c["shift"], "omop": c["omop"],
                                    "target_unit": c["target_unit"], "same": c["same"], "plot": pdata}
     # rows that match exactly one candidate
     if cands and ranged.any():
@@ -862,7 +1017,8 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
             + ". omop_injection.tsv holds one fix per test and unit, so this needs a split by lab or period.")
     elif best_v and best_r and best_v is best_r and best_v["v"]["_rank"] < 2:
         result, conf, pick = "suggest", "High", best_v
-        reason = (f"The values match the harmonized {best_v['target_unit']} values after × {fmt_cf(best_v['cf'])} "
+        reason = (f"The values match the harmonized {best_v['target_unit']} values after "
+                  f"{conv_txt(best_v['cf'], best_v['shift'])} "
                   f"(decided by {best_v['v']['VALUES_DECIDED_BY']}), and {rm(best_r)} of the rows "
                   f"with a range sit on the concept's typical range.")
     elif best_v and best_r and best_v is best_r:
@@ -876,7 +1032,8 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
                   f"{rm(best_r)} of the rows with a range point to {best_r['unit']}.")
     elif best_v and not evidence:
         result, conf, pick = "suggest", "Medium", best_v
-        reason = (f"The values match after × {fmt_cf(best_v['cf'])} (decided by {best_v['v']['VALUES_DECIDED_BY']}). "
+        reason = (f"The values match after {conv_txt(best_v['cf'], best_v['shift'])} "
+                  f"(decided by {best_v['v']['VALUES_DECIDED_BY']}). "
                   f"Too few rows have a range to confirm it.")
     elif best_r and not best_v:
         result, conf, pick = "suggest", "Medium", best_r
@@ -888,7 +1045,7 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
                   f"range match any candidate unit.")
     else:
         result = "nofit"
-        accepted = ", ".join(f"{c['unit']} (× {fmt_cf(c['cf'])})" for c in cands)
+        accepted = ", ".join(f"{c['unit']} ({conv_txt(c['cf'], c['shift'])})" for c in cands)
         bv = min(cands, key=lambda c: c["v"]["KS_STAT"] if np.isfinite(c["v"]["KS_STAT"]) else 9)
         txt = (f"None of the concept's units fits ({accepted} into {bv['target_unit']}). "
                f"Values: closest is {bv['unit']} (KS {bv['v']['KS_STAT']:.2f}, MAD distance "
@@ -936,7 +1093,7 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
     elif result == "usagi":
         ucase = {"UNCHECKED": "usagi_unchecked", "MISSING": "usagi_missing"}.get(pair_status, "usagi_review")
     elif pick is not None:
-        ucase = "synonym" if abs(pick["cf"] - 1) < 1e-9 else "wrong"
+        ucase = "synonym" if abs(pick["cf"] - 1) < 1e-9 and not pick["shift"] else "wrong"
     else:
         ucase = "unconverted"
 
@@ -959,6 +1116,7 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
     for c in cands:
         cand_rows.append(dict(GROUP_ID=gid, CAND_ID=c["cid"], OMOP_ID=c["omop"], TARGET_UNIT=c["target_unit"],
                               UNIT=c["unit"], SAME_SCALE_UNITS="|".join(c["same"]), CONVERSION_FACTOR=c["cf"],
+                              CONVERSION_SHIFT=c["shift"],
                               **{k: v for k, v in c["v"].items() if not k.startswith("_")},
                               RANGE_MATCH=c["range_match"] if c["rm_ok"] else "",
                               RANGE_ASSIGNED=c["assigned"] if c["as_ok"] else "",
@@ -974,6 +1132,7 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
     )
     if pick is not None:
         out["CONVERSION_FACTOR"] = pick["cf"]
+        out["CONVERSION_SHIFT"] = pick["shift"]
         out["TARGET_UNIT"] = pick["target_unit"]
     if ref is not None:
         out.setdefault("TARGET_UNIT", ref["target_unit"])
@@ -986,21 +1145,26 @@ def evaluate_group(g, data, usagi, rules, args, cache_targets, status=lambda ste
         out["N_TARGET"] = cache_targets[om][3]
         out["N_TARGET_SUBJECTS"] = cache_targets[om][4]
         out.setdefault("TARGET_UNIT", cache_targets[om][0])
-    if result == "usagi":
-        out["VS_CURRENT_RULE"] = "Rule exists" if (test, unit) in rules else ""
-    elif (test, unit) in rules and pick is not None:
-        out["VS_CURRENT_RULE"] = "Same" if rules[(test, unit)] == pick["unit"] else "Different"
-    elif pick is not None:
+    # the suggestion against the rule: same when the rule's unit has the picked unit's factor
+    if pending and pick is not None:
+        out["VS_CURRENT_RULE"] = "Same" if same_scale(cands, pending, pick) else "Different"
+    elif pending:
+        out["VS_CURRENT_RULE"] = "Rule exists"
+    elif applied:
+        out["VS_CURRENT_RULE"] = "Rule applied"
+    elif pick is not None and result == "suggest":
         out["VS_CURRENT_RULE"] = "New"
     else:
-        out["VS_CURRENT_RULE"] = "Rule exists" if (test, unit) in rules else ""
+        out["VS_CURRENT_RULE"] = ""
     out["REASON"] = reason
     key = "|".join(str(out.get(k, "")) for k in ("TEST_NAME", "SOURCE_UNIT", "RESULT", "FIX_UNIT",
                                                  "CONVERSION_FACTOR", "OMOP_ID"))
+    if out.get("CONVERSION_SHIFT"):
+        key += f"|{out['CONVERSION_SHIFT']}"     # plain factors keep the ids they had before shifts existed
     out["SUGGESTION_ID"] = hashlib.sha1(key.encode()).hexdigest()[:10]
 
     status("unit history")
-    plot["context"] = context_tables(data.group_context(test, unit), mc)
+    plot["context"] = context_tables(ctx, mc)
     plot["picked"] = pick["cid"] if pick else (ref["cid"] if ref else None)
     plot["reason"] = reason
     return out, cand_rows, plot
@@ -1077,14 +1241,14 @@ def publish_counts(gdf, min_target_n, min_cell):
     out["N_TARGET"] = pd.Series([int(n) if k else "" for n, k in zip(n_t, ok)], index=out.index, dtype=object)
     out["N_TARGET_SUBJECTS"] = pd.Series([int(p) if k else "" for p, k in zip(p_t, ok)], index=out.index, dtype=object)
     out["RANGE_COVERAGE"] = pd.to_numeric(out["RANGE_COVERAGE"], errors="coerce").round(2)
-    return out.drop(columns=["N_RANGED"])
+    return out.drop(columns=["N_RANGED"], errors="ignore")
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
-def summary_md(gdf, args, parquet):
+def summary_md(gdf, args, parquet, vdf=None):
     dec = gdf[gdf["DECIDABLE"] == "yes"]
     lines = ["# Unharmonized suggestions", "",
              f"Input `{parquet}`. {len(gdf):,} groups (test × unit, rows with a numeric value), "
@@ -1100,6 +1264,9 @@ def summary_md(gdf, args, parquet):
     lines += ["", "| Concept | Groups | Rows |", "| --- | ---: | ---: |"]
     for k, sub in gdf.groupby("CONCEPT_CASE"):
         lines.append(f"| {k} | {len(sub):,} | {int(sub['N_ROWS'].sum()):,} |")
+    if vdf is not None:
+        import validate
+        lines += validate.summary_lines(vdf)
     return "\n".join(lines) + "\n"
 
 
@@ -1128,6 +1295,8 @@ def build_parser():
                    help="Fewest people behind any published group, count or share")
     p.add_argument("--injection-table", type=Path, default=DEFAULT_INJECTION_TABLE,
                    help="Current omop_injection.tsv, to compare against (skipped if missing)")
+    p.add_argument("--no-validation", action="store_true",
+                   help="Skip the validation of the secondary rules (validate.py, validated.tsv)")
     p.add_argument("--release", action="store_true",
                    help=f"Copy the outputs to {RELEASE_DIR}, after release_check.py finds nothing to fix")
     rd.add_branch_argument(p)
@@ -1136,6 +1305,10 @@ def build_parser():
 
 def main():
     args = build_parser().parse_args()
+    if args.release and args.no_validation:
+        # the release is one run: plot_data.json.gz would lose the rule checks' entries while an
+        # older validated.tsv stayed behind
+        sys.exit("--release needs the rule validation: drop --no-validation")
     if args.input is None:
         sys.exit(f"No engine output found in {ENGINE_DIR}: pass --input")
     rd.set_harmonization_branch(args.harmonization_branch)
@@ -1204,6 +1377,14 @@ def main():
                   f"({_fmt_t(el)}{', ~' + _fmt_t(el / i * (len(sel) - i)) + ' left' if i < len(sel) else ''})",
                   flush=True)
 
+    # the secondary rules, checked with the same engine as if they did not exist (validate.py)
+    vdf, val_figs = None, []
+    if not args.no_validation:
+        import validate
+        vdf, vcands, vplots, val_figs = validate.run(sys.modules[__name__], data, usagi, rules, args, cache_targets)
+        cands += vcands
+        plots.update(vplots)
+
     nd_cols = ["TEST_NAME", "SOURCE_UNIT", "N_ROWS", "N_SUBJECTS", "RESULT", "REASON", "NEEDS", "CONCEPT_CASE",
                "USAGI_PAIR_STATUS", "OMOP_ID", "OMOP_NAME", "TARGET_UNIT", "N_TARGET", "N_TARGET_SUBJECTS",
                "RANGE_COVERAGE", "ISSUE_TITLE"]
@@ -1228,10 +1409,12 @@ def main():
         "not_decidable.tsv": lambda p: nd_df.to_csv(p, sep="\t", index=False),
         "candidates.tsv": lambda p: cdf.to_csv(p, sep="\t", index=False),
         "proposed_omop_injection.tsv": lambda p: proposed.to_csv(p, sep="\t", index=False),
-        "summary.md": lambda p: Path(p).write_text(summary_md(gdf, args, args.input)),
+        "summary.md": lambda p: Path(p).write_text(summary_md(gdf, args, args.input, vdf)),
         "plot_data.json.gz": lambda p: Path(p).write_bytes(gzip.compress(
             json.dumps(_round(plots), allow_nan=False).encode())),
     }
+    if vdf is not None:
+        files["validated.tsv"] = lambda p: vdf.to_csv(p, sep="\t", index=False)
     for name, write in files.items():
         write(args.out_dir / name)
     print(f"\nWrote {', '.join(files)} → {args.out_dir}/")
@@ -1242,8 +1425,9 @@ def main():
     # a folder's figures count only when drawn by the current figure code (format.txt)
     current_format = lambda d: (d / "format.txt").exists() and (d / "format.txt").read_text().strip() == str(FIGURE_FORMAT)
     out_ok, rel_ok = current_format(fig_dir), current_format(rel_fig)
-    # decidable groups only: a not-decidable issue is about what is missing, said in its text
-    with_fig = [r for r in groups if r["DECIDABLE"] == "yes"]
+    # decidable groups only: a not-decidable issue is about what is missing, said in its text;
+    # and every checked rule (named by its VALIDATION_ID)
+    with_fig = [r for r in groups if r["DECIDABLE"] == "yes"] + val_figs
     todo = [r for r in with_fig if not (out_ok and (fig_dir / f"{r['SUGGESTION_ID']}.png").exists())
             and not (rel_ok and (rel_fig / f"{r['SUGGESTION_ID']}.png").exists())]
     if todo:
@@ -1257,8 +1441,8 @@ def main():
             elif k % 100 == 0 or k == len(todo):
                 print(f"Figures for new suggestions: {k:,}/{len(todo):,} · {_fmt_t(time.time() - t0)}", flush=True)
     (fig_dir / "format.txt").write_text(f"{FIGURE_FORMAT}\n")
-    print(f"Figures (decidable groups): {len(todo):,} new, {len(with_fig) - len(todo):,} already drawn")
-    print(summary_md(gdf, args, args.input))
+    print(f"Figures (decidable groups, checked rules): {len(todo):,} new, {len(with_fig) - len(todo):,} already drawn")
+    print(summary_md(gdf, args, args.input, vdf))
     problems = check_release(args.out_dir, args.min_target_n)
     for msg in problems[:20]:
         print(f"  RELEASE CHECK: {msg}")
@@ -1270,7 +1454,7 @@ def main():
         for name in files:
             shutil.copy2(args.out_dir / name, RELEASE_DIR / name)
         rel_fig.mkdir(exist_ok=True)
-        current = [fig_dir / f"{r['SUGGESTION_ID']}.png" for r in with_fig]   # this run's decidable groups only
+        current = [fig_dir / f"{r['SUGGESTION_ID']}.png" for r in with_fig]   # this run's figures only
         # added, never replaced or removed, unless the release holds figures of an older format
         new_figs = [f for f in current if f.exists() and (not rel_ok or not (rel_fig / f.name).exists())]
         for f in new_figs:

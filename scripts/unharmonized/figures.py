@@ -37,6 +37,12 @@ def _rtxt(lo, hi):
     return f"{f(lo)}–{f(hi)}"
 
 
+def _conv(cf, shift=None):
+    """'× 100', or '× 10.93 − 23.5' for a linear conversion."""
+    s = float(shift) if shift not in (None, "") and np.isfinite(float(shift)) else 0.0
+    return f"× {float(cf):g}" + (f" {'−' if s < 0 else '+'} {abs(s):g}" if s else "")
+
+
 def _ok(lo, hi):
     good = lambda v: v is None or v > 0
     return good(lo) and good(hi) and (lo is not None or hi is not None) and (lo is None or hi is None or lo < hi)
@@ -75,11 +81,12 @@ def draw(row, plot, path):
     cid = plot.get("picked")
     cand = plot.get("candidates", {}).get(cid) if cid else None
     clusters = (plot.get("concepts", {}).get(cand["omop"], {}).get("clusters", []) if cand else [])
-    bands = [(None if _nn(c.get("LOWER")) is None else c["LOWER"] / cand["cf"],
-              None if _nn(c.get("UPPER")) is None else c["UPPER"] / cand["cf"]) for c in clusters] if cand else []
+    back = lambda v: (v - cand.get("shift", 0.0)) / cand["cf"]     # target unit → candidate unit
+    bands = [(None if _nn(c.get("LOWER")) is None else back(c["LOWER"]),
+              None if _nn(c.get("UPPER")) is None else back(c["UPPER"])) for c in clusters] if cand else []
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8.4, 3.3), gridspec_kw={"width_ratios": [1.1, 1]})
-    fix = (f": {row['SOURCE_UNIT']} → {row['FIX_UNIT']} (× {float(row['CONVERSION_FACTOR']):g})"
+    fix = (f": {row['SOURCE_UNIT']} → {row['FIX_UNIT']} ({_conv(row.get('CONVERSION_FACTOR'), row.get('CONVERSION_SHIFT'))})"
            if row["RESULT"] == "Suggest fix" else
            f" ({row['TEST_NAME']}, {row['SOURCE_UNIT']}) → {row['OMOP_ID']}"
            if row["RESULT"] == "Unit is right: approve the Usagi row" else "")
@@ -139,7 +146,7 @@ def draw(row, plot, path):
             b = math.log10(hi) if hi and hi > 0 else max(drawn)
             ax2.axvspan(a, b, color=GREEN, alpha=0.12, lw=0)
         ax2.legend(fontsize=7, frameon=False, loc="upper right")
-        ax2.set_title(f"Values P5–P95, log10 (as {cand['unit']} × {cand['cf']:g})" if pd_
+        ax2.set_title(f"Values P5–P95, log10 (as {cand['unit']} {_conv(cand['cf'], cand.get('shift'))})" if pd_
                       else "Values P5–P95, log10 (no candidate unit)",
                       fontsize=8, color=MUTED, loc="left")
     else:
@@ -150,7 +157,8 @@ def draw(row, plot, path):
     for ax in (ax1, ax2):
         for s in ("top", "right"):
             ax.spines[s].set_visible(False)
-    fig.text(0.99, 0.01, f"suggestion {row['SUGGESTION_ID']}", ha="right", fontsize=6, color=GREY)
+    fig.text(0.99, 0.01, f"{row.get('ID_LABEL', 'suggestion')} {row['SUGGESTION_ID']}", ha="right", fontsize=6,
+             color=GREY)
     fig.tight_layout(rect=(0, 0.02, 1, 0.93))
 
     buf = io.BytesIO()

@@ -17,7 +17,8 @@ invented. One scenario per case the suggestions have to handle:
   fp-pth · pg/ml           test maps to two concepts (ng/l, pmol/l) → ng/l
   s-d-25 · (no unit)       values look like nmol/l, ranges are on the umol/l scale (conflict)
   u-alb · (no unit)        half the labs report mg/l, half g/l (needs a split)
-  b-hb-a1c · (no unit)     values and ranges in mmol/mol, only % converts (no unit fits)
+  b-hb-a1c · (no unit)     values and ranges in mmol/mol → mmol/mol (the concept is harmonized in
+                           mmol/mol; its % rows by the table's linear formula 10.93*X-23.50)
   b-hkr · fl               unchecked pair; the values are red-cell volumes, not hematocrit (no unit fits)
   -l-ind · (no unit)       concept with too few harmonized rows
   syn-no-usagi · (no unit) test not in Usagi
@@ -35,6 +36,26 @@ minimum-N rules must catch (scripts/common/disclosure.py):
   p-ferrit · (no unit)     40 rows with the range 7–77, all from 2 people: that range pair is not shown
   du-alb · mg              its few rows with a range come from 3 people: the coverage and the range
                            shares are not published
+
+Rows a secondary rule (omop_injection.tsv) changed, as the engine leaves them: MEASUREMENT_UNIT is
+the rule's fix, cleaned-post-inj::MEASUREMENT_UNIT the unit before it (validate.py's cases):
+
+  p-krea · umoll → umol/l      values and ranges in umol/l: Confirmed (high)
+  p-ferrit · mikrog/l → ng/ml  ng/ml is the same scale as the engine's ug/l: Confirmed
+  fp-pth · pg → pmol/l         the values are ng/l (pg/ml), harmonized as pmol/l: Disagrees, and the
+                               rows' concept differs from the engine's
+  b-hb-a1c · mmol/m → mmol/mol the fixed rows still fail (left unharmonized here): No effect;
+                               their failed group shows the rule as applied
+  b-ghb-a1c,tk · (no unit) → % values and ranges in %, harmonized by the formula: Confirmed, as
+                               % × 10.93 − 23.5 into mmol/mol (a conversion with a shift)
+  du-alb · mg/vrk → mg/24h     rows from 3 people: Cannot check, counts hidden
+  -l-ind · indeksi → index     concept with too few harmonized rows: Cannot check
+  p-krea · umol → umol/l       applied in the run but no longer in the table: Confirmed, "not in the table"
+  p-gluk · mg/dl → mmol/l      in the table, no rows: Not applied (like b-hkr osuus and du-na mmol,
+                               whose failed rows the table's rule did not change: a table newer than the run)
+
+The rules' rows that harmonized must not be in the harmonized comparison data (suggest.py leaves out
+every row a rule changed): fp-pth's pmol/l concept would otherwise carry ng/l-sized values.
 
 Writes OUT/synthetic_engine.parquet and OUT/omop_injection.tsv (a stand-in for the current
 rules, so "same as / different from the current rule" can be tested).
@@ -67,7 +88,8 @@ TARGETS = {
     "3010566":  [("fp-pth", "pmol/l", 1, "pmol/l", np.log10(5.3), 0.22, 2000, (1.6, 6.9), 0.8)],
     "40771025": [("s-d-25", "nmol/l", 1, "nmol/l", np.log10(70), 0.2, 6000, (50, 125), 0.7)],
     "3012516":  [("u-alb", "mg/l", 1, "mg/l", np.log10(8), 0.45, 5000, (None, 20), 0.8)],
-    "3004410":  [("b-hb-a1c", "%", 1, "%", np.log10(5.7), 0.05, 6000, (4, 6), 0.85)],
+    "3004410":  [("b-hb-a1c", "mmol/mol", 1, "mmol/mol", np.log10(38), 0.08, 6000, (20, 42), 0.85),
+                 ("b-hb-a1c", "%", "10.93*X-23.50", "mmol/mol", np.log10(39), 0.08, 3000, (20.2, 42.1), 0.85)],
     "3051611":  [("-l-ind", "index", 1, "index", np.log10(1.0), 0.2, 40, (None, 1.2), 0.5)],
     "3015736":  [("u-ph", "ph", 1, "ph", np.log10(6.0), 0.05, 4000, (5, 8), 0.7)],
     "3028167":  [("b-t-cd4", "e9/l", 1, "e9/l", np.log10(0.8), 0.25, 4000, (0.4, 1.6), 0.7)],
@@ -97,7 +119,29 @@ GROUPS = [
     ("b-t-cd4", "e6/l", "0", 900, [(1, np.log10(800), 0.25, (400, 1600))], 0.7, ["e6/l"]),
 ]
 
-RULES = [("b-hkr", "osuus", "ratio"), ("du-na", "mmol", "mmol/l")]
+RULES = [("b-hkr", "osuus", "ratio"), ("du-na", "mmol", "mmol/l"), ("p-gluk", "mg/dl", "mmol/l")]
+
+# rows a secondary rule changed: (test, unit before the rule, rule fix, harmonized concept or None,
+#   its unit, factor fix → that unit, n, log10 median of the reported value, log10 sd,
+#   reported range or None, coverage, rows per person, rule still in the table)
+RULED = [
+    ("p-krea", "umoll", "umol/l", "3020564", "umol/l", 1, 1200, np.log10(80), 0.12, (50, 110), 0.8, 3, True),
+    ("p-ferrit", "mikrog/l", "ng/ml", "3001122", "ug/l", 1, 700, np.log10(85), 0.38, (15, 300), 0.8, 3, True),
+    ("fp-pth", "pg", "pmol/l", "3010566", "pmol/l", 1, 900, np.log10(50), 0.22, (15, 65), 0.75, 3, True),
+    ("b-hb-a1c", "mmol/m", "mmol/mol", None, "NA", None, 1100, np.log10(38), 0.08, (20, 42), 0.8, 3, True),
+    ("b-ghb-a1c,tk", "NA", "%", "3004410", "mmol/mol", "10.93*X-23.50", 900, np.log10(5.7), 0.05, (4, 6), 0.8, 3, True),
+    ("du-alb", "mg/vrk", "mg/24h", "3027035", "mg/24h", 1, 200, np.log10(12), 0.5, (None, 30), 0.7, 70, True),
+    ("-l-ind", "indeksi", "index", "3051611", "index", 1, 300, np.log10(1.0), 0.2, (None, 1.2), 0.5, 3, True),
+    ("p-krea", "umol", "umol/l", "3020564", "umol/l", 1, 400, np.log10(80), 0.12, (50, 110), 0.8, 3, False),
+]
+
+
+def conv(cf):
+    """(a, b) of a factor or a linear formula 'a*X+b' (as the conversion table writes them)."""
+    if isinstance(cf, str) and "X" in cf:
+        a, b = cf.replace(" ", "").split("*X")
+        return float(a), float(b or 0)
+    return float(cf), 0.0
 
 
 def sig3(x):
@@ -148,18 +192,20 @@ def main():
     for omop, pops in TARGETS.items():
         for test, unit, cf, tunit, mu, sd, n, rng_t, cov in pops:
             vt = 10 ** (mu + rng.normal(0, sd, n))            # target-unit values
-            reported = sig3(vt / cf)
+            a, b = conv(cf)
+            reported = sig3((vt - b) / a)
             labs = rng.choice(LABS[:5], n)
             lo, hi = rng_t if rng_t else (None, None)
-            lower, upper = lab_ranges(rng, None if lo is None else lo / cf, None if hi is None else hi / cf, n, cov, labs)
+            lower, upper = lab_ranges(rng, None if lo is None else (lo - b) / a, None if hi is None else (hi - b) / a,
+                                      n, cov, labs)
             frames.append(pd.DataFrame({
                 "TEST_NAME_ABBREVIATION": test, "MEASUREMENT_UNIT": unit, "source::MEASUREMENT_UNIT": unit,
                 "cleaned-pre-inj::MEASUREMENT_UNIT": unit, "cleaned-post-inj::MEASUREMENT_UNIT": unit,
                 "MEASUREMENT_VALUE": [f"{v:g}" for v in reported],
                 "harmonization_omop::OMOP_ID": omop,
-                "harmonization_omop::MEASUREMENT_VALUE": [f"{v * cf:g}" for v in reported],
+                "harmonization_omop::MEASUREMENT_VALUE": [f"{a * v + b:g}" for v in reported],
                 "harmonization_omop::MEASUREMENT_UNIT": tunit,
-                "harmonization_omop::CONVERSION_FACTOR": f"{cf:g}",
+                "harmonization_omop::CONVERSION_FACTOR": cf if isinstance(cf, str) else f"{cf:g}",
                 "REFERENCE_RANGE_LOWER_VALUE": lower, "REFERENCE_RANGE_UPPER_VALUE": upper,
                 "SERVICE_PROVIDER": labs, "APPROX_EVENT_DATETIME": dates(rng, n),
                 "FINNGENID": people(rng, n, 4),
@@ -193,6 +239,23 @@ def main():
             "FINNGENID": people(rng, n, 1500 if test == "syn-few-people" else 3),
         }))
 
+    for test, post, fix, omop, hunit, cf, n, mu, sd, rg, cov, per, _ in RULED:
+        vals = sig3(10 ** (mu + rng.normal(0, sd, n)))
+        labs = rng.choice(LABS[:5], n)
+        lower, upper = lab_ranges(rng, *(rg or (None, None)), n, cov if rg else 0, labs)
+        frames.append(pd.DataFrame({
+            "TEST_NAME_ABBREVIATION": test, "MEASUREMENT_UNIT": fix, "source::MEASUREMENT_UNIT": post,
+            "cleaned-pre-inj::MEASUREMENT_UNIT": post, "cleaned-post-inj::MEASUREMENT_UNIT": post,
+            "MEASUREMENT_VALUE": [f"{v:g}" for v in vals],
+            "harmonization_omop::OMOP_ID": omop or "NA",
+            "harmonization_omop::MEASUREMENT_VALUE": [f"{conv(cf)[0] * v + conv(cf)[1]:g}" for v in vals] if omop else "NA",
+            "harmonization_omop::MEASUREMENT_UNIT": hunit if omop else "NA",
+            "harmonization_omop::CONVERSION_FACTOR": (cf if isinstance(cf, str) else f"{cf:g}") if omop else "NA",
+            "REFERENCE_RANGE_LOWER_VALUE": lower, "REFERENCE_RANGE_UPPER_VALUE": upper,
+            "SERVICE_PROVIDER": labs, "APPROX_EVENT_DATETIME": dates(rng, n),
+            "FINNGENID": people(rng, n, per),
+        }))
+
     df = pd.concat(frames, ignore_index=True)
     # cases for the minimum-N rules (see the docstring)
     failed = df["harmonization_omop::MEASUREMENT_VALUE"] == "NA"
@@ -207,8 +270,9 @@ def main():
     df = df.sample(frac=1, random_state=args.seed).reset_index(drop=True)
     args.out.mkdir(parents=True, exist_ok=True)
     df.to_parquet(args.out / "synthetic_engine.parquet", index=False)
+    table = RULES + [(t, u, f) for t, u, f, *_, in_table in RULED if in_table]
     pd.DataFrame([{"TEST_NAME_ABBREVIATION": t, "source_unit_clean": u, "source_unit_clean_fix": f,
-                   "notes": "synthetic", "INJECTION_NOTES": "VALID"} for t, u, f in RULES]
+                   "notes": "synthetic", "INJECTION_NOTES": "VALID"} for t, u, f in table]
                  ).to_csv(args.out / "omop_injection.tsv", sep="\t", index=False)
     print(f"Wrote {args.out}/synthetic_engine.parquet ({len(df):,} rows) and omop_injection.tsv")
 

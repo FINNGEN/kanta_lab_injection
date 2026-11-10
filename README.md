@@ -284,9 +284,16 @@ works out each group's OMOP concept and candidate units, then weighs two indepen
 
 - **Values**: the engine's KS / T / MAD tests on the group's values against the concept's harmonized values, converted
   to each candidate unit.
-- **Reference ranges**: the group's lower / upper limits, multiplied by each candidate's factor, against the concept's
+- **Reference ranges**: the group's lower / upper limits, converted by each candidate's conversion, against the concept's
   typical ranges (learned from the rows already harmonized). A concept can have more than one typical range, e.g. INR's
   normal range and the warfarin target.
+
+**Candidate units** are the units of the concept's quantity that the conversion table converts into the concept's unit,
+directly or through other units, merged when they convert the same way. A conversion is a factor (`100`) or a linear
+formula with a shift (`10.93*X-23.50`, HbA1c % → mmol/mol): value in the concept's unit = factor · x + shift. A row with
+`ONLY_TO_OMOP_CONCEPTS` counts only for those concepts, and a unit converts as the engine converts it: by its own row into
+the concept's unit (even a row from the concept's unit to itself, e.g. PEth `mg/l → mg/l` × 0.703), else through the chain.
+Candidates with a shift have `CONVERSION_SHIFT` set; other formulas are listed as not tested.
 
 Each group gets a **result**:
 
@@ -324,7 +331,7 @@ And the unit problem:
 - Unit is a synonym or incomplete
 - Unit does not match the values
 - Conversion missing from the table
-- Only a formula conversion exists
+- Only a formula conversion exists (one that is not linear: linear ones are tested, see below)
 - Too few harmonized rows to compare
 
 ```bash
@@ -333,8 +340,10 @@ python3 scripts/unharmonized/suggest.py --out-dir OUT            # add --release
 python3 scripts/unharmonized/suggest.py --out-dir OUT --test b-hkr
 ```
 
-The engine parquet is read in four full scans: one dumps every row that failed harmonization to
-`<dump-dir>/<input name>/failed.parquet`, and three fetch the harmonized side of the concepts involved. Everything else
+The engine parquet is read in five full scans: one dumps every row that failed harmonization to
+`<dump-dir>/<input name>/failed.parquet`, one dumps the rows a secondary rule changed to `ruled.parquet` (for the
+validation below), and three fetch the harmonized side of the concepts involved. That harmonized side leaves out every
+row a secondary rule changed, so the rules are never checked against their own output. Everything else
 runs from that cache, so re-runs with other thresholds take seconds; a lower `--min-count` only fetches the concepts
 not seen before. The cache is rebuilt when the input file changes (another name, or the same name
 with a different size or time), or with `--force`.
@@ -347,7 +356,30 @@ Outputs:
 - `candidates.tsv`: the evidence per candidate unit.
 - `proposed_omop_injection.tsv`: the suggested fixes in `omop_injection.tsv` format, compared with the current rules.
 - `summary.md`
+- `validated.tsv`: the secondary rules checked against the data (below).
 - `plot_data.json.gz`: aggregates only. Counts under 5 are hidden, a concept's harmonized-row count is only given from 100 up (the minimum to compare against), and reference texts are never read.
+
+**Validating the secondary rules** (`scripts/unharmonized/validate.py`, part of every run; `--no-validation` skips it).
+A rule in `omop_injection.tsv` rewrites `MEASUREMENT_UNIT` right after the engine's snapshot
+`cleaned-post-inj::MEASUREMENT_UNIT`, so the rows it changed are the rows where the two differ. Each rule applied in
+the run is checked with the same decision engine, as if it did not exist: its rows are evaluated with the unit they had
+before the rule, and the concept comes from Usagi alone. `validated.tsv` has one row per rule, with `VALIDATION`:
+
+- **Confirmed**: the engine suggests the rule's unit, or a unit with the same conversion (with the engine's confidence).
+- **Disagrees**: the engine suggests a unit with another conversion, or finds the unit before the rule already right.
+- **No effect**: the rule fires, but none of its rows harmonize afterwards, because the (test, unit) it produces is
+  missing or unchecked in Usagi (or has no conversion). This comes before the verdicts above: the scale may be right,
+  but the rule changes nothing. The reason names the Usagi status, and the engine's unit when that one is approved.
+- **Not confirmed**: the engine picks no unit (values and ranges disagree, a split, or no unit fits).
+- **Cannot check**: not decidable, or the rule's rows come from fewer than 5 people (counts hidden as `BELOW_THRESHOLD`).
+- **Not applied**: in the table, but no row was changed by it in this run.
+
+`ENGINE_CONVERSION` and `RULE_CONVERSION` give both units' conversions into the concept's unit (e.g.
+`× 10.93 − 23.5 into mmol/mol`). `RULE_STATUS` says whether the applied rule is still in the current table, `CONCEPT_MATCH` compares the engine's concept
+with the one the rule's rows harmonized to, and `SHARE_HARMONIZED` is the share of the rule's rows that harmonized.
+For the failed groups, `CURRENT_RULE` now also names a rule that was applied to the rows but left them failing.
+`--release` releases the validation with everything else (`validated.tsv`, the rules' plot data and figures);
+`--release --no-validation` is refused, since the release would mix two runs.
 
 **Terms.** On the portal and in the issues, *unharmonized rows* are the rows of one test × unit that fail
 harmonization (the rows a fix is for), and *candidate units* are the units tested as that fix. ("Candidate" is not used
@@ -365,6 +397,22 @@ history.
   - issues are looked up by title when the site is built;
   - a closed issue whose rows still fail, or whose suggestion has changed since, is flagged on the page;
   - issues whose group has left the data are listed in the *Resolved* tab.
+
+**Validated decisions tab.** The checked secondary rules (`validated.tsv`), with a verdict summary. Each rule with data
+has its own page: the rule against the engine's unit, the rows it changed (people, share harmonized), and the same
+evidence as a suggestion (candidates, values, reference ranges, unit history up to the rule).
+
+- **Review issues for rules** are titled `[unharm-check] <test> · <unit> → <fix>`, one per rule, in the same repo.
+  Every verdict but *Confirmed* can get one; in the table the verdict badge of *Disagrees*, *No effect*,
+  *Not confirmed* and *Not applied* opens it directly. The issue has the rule, the verdict, the engine's unit, the
+  rows and people, the concept, the reason, the reference ranges, the candidates and the figure
+  (`figures/<validation id>.png`), and ends with `Validation id: …`.
+- **Status:** an open issue on a rule that is now *Confirmed* is flagged "the issue can be closed"; a closed issue whose
+  check still fails is flagged; when the check has changed since the issue (another verdict, engine unit or concept), the
+  page offers a new issue.
+- **Resolved:** when Javier changes or removes a rule and the engine is re-run, the old rule no longer changes any row,
+  so its title leaves the data and the issue moves to *Resolved* (kind *Rule check*). The changed rule is checked
+  under its new title.
 
 **Local test with synthetic data:**
 

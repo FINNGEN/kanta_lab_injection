@@ -31,7 +31,7 @@ p-inr-pik		inr	The values match after × 1 (decided by KS). Too few rows have a 
 s-cmvabg	eiu	au/ml	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		a629c3544f
 p-k-vt	1	mmol/l	The values match the harmonized mmol/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		98df2e6ad3
 b-hba1c	mmol	mmol/mol	The values match the harmonized mmol/mol values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		8fa47b439b
-cb-inrpika		inr	100% of the rows with a range sit on the inr range. The values pass only the loose MAD test (KS 0.62), so the patients differ from the harmonized rows rather than the unit.	SUGGESTED (Medium)	Medium	New	Usagi row (cb-inrpika, inr) → 3032080	9754cf1e61
+cb-inrpika		inr	100% of the rows with a range sit on the inr range. The values pass only the loose MAD test (KS 0.61), so the patients differ from the harmonized rows rather than the unit.	SUGGESTED (Medium)	Medium	New	Usagi row (cb-inrpika, inr) → 3032080	9754cf1e61
 u-epitel	/sunf	u/field	The values match after × 1 (decided by MAD). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		d968f9c634
 p-krea	umol	umol/l	The values match the harmonized umol/l values after × 1 (decided by KS), and 100% of the rows with a range sit on the concept's typical range.	SUGGESTED (High)	High	New		becbfd072d
 b-hb	e9/l	g/l	The values match after × 1 (decided by KS). Too few rows have a range to confirm it.	SUGGESTED (Medium)	Medium	New		33cc0f6499
